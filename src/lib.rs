@@ -8,7 +8,6 @@ pub mod database;
 pub mod events;
 pub use config::Config;
 
-
 pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Error, Debug)]

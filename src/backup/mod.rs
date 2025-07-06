@@ -4,11 +4,7 @@ use tempfile::NamedTempFile;
 use tokio::process::Command;
 use tracing::{debug, info};
 
-use crate::{
-    config::BackupConfig,
-    events::ProtectEvent,
-    {Error, Result},
-};
+use crate::{Error, Result, config::BackupConfig, events::ProtectEvent};
 
 pub struct BorgBackup {
     config: BackupConfig,

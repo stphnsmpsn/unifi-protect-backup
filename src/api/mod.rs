@@ -9,9 +9,9 @@ use tokio_tungstenite::{connect_async, tungstenite::Message};
 use tracing::{debug, error, info};
 
 use crate::{
+    Error, Result,
     config::UnifiConfig,
     events::{EventType, ProtectEvent, SmartDetectType, WebSocketMessage},
-    {Error, Result},
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

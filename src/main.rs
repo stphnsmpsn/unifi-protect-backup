@@ -2,7 +2,10 @@ use clap::Parser;
 use tracing::{debug, info};
 use tracing_subscriber::{EnvFilter, layer::SubscriberExt, util::SubscriberInitExt};
 
-use unifi_protect_backup_rs::{Config, Result, config::Args};
+use unifi_protect_backup_rs::{
+    Config, Result,
+    config::{Args, check_and_create_config},
+};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -13,7 +16,13 @@ async fn main() -> Result<()> {
 
     debug!("Parsing config...");
     let args: Args<Config> = Args::parse();
-    let config = args.config;
+
+    // Only prompt for config setup if no config file was provided via --config
+    if args.config.is_none() {
+        check_and_create_config().await?;
+    }
+
+    let config = args.get_config()?;
     debug!(config = ?config, "Parsed config successfully");
 
     info!("Starting UniFi Protect Backup");
