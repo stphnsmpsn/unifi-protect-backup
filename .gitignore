@@ -1,0 +1,7 @@
+target/
+.secrets/
+.idea/
+.claude
+config.toml
+PROJECT_STATUS.md
+CLAUDE.md
