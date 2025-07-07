@@ -1,15 +1,15 @@
-[workspace]
-members = [
-    "crates/*",
-]
-
-resolver = "2"
-
-[workspace.package]
+[package]
+name = "unifi-protect-backup"
 version = "0.1.0"
 edition = "2024"
+authors = ["Steve Sampson <mail@stephensampson.dev>"]
+description = "Rust-based UniFi Protect backup tool with rsync.net support"
+license = "MIT"
+repository = "https://gitlab.stephensampson.dev/homelab/unifi-protect-backup"
 
-[workspace.dependencies]
+[dependencies]
+unifi-protect-client = { path = "../unifi-protect-client" }
+
 chrono = { version = "0.4", features = ["serde"] }
 clap = { version = "4.0", features = ["derive", "env"] }
 futures-util = "0.3"
@@ -24,7 +24,10 @@ tokio-tungstenite = { version = "0.27.0", features = ["native-tls"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 url = "2.0"
-uuid = { version = "1.0", features = ["v4"] }
+uuid = { version = "1.0", features = ["v4", "serde"] }
 toml = "0.8.23"
 async-trait = "0.1.88"
 native-tls = "0.2.14"
+
+[dev-dependencies]
+tokio-test = "0.4"

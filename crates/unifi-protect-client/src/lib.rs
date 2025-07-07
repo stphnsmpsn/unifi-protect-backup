@@ -1,41 +1,26 @@
-use chrono::DateTime;
+use std::collections::HashMap;
+
+use chrono::{DateTime, Utc};
 use futures_util::StreamExt;
 use reqwest::{Client, Url};
-use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::collections::HashMap;
 use tokio::sync::mpsc;
-use tokio_tungstenite::{connect_async, tungstenite::Message};
-use tracing::{debug, error, info};
+use tokio_tungstenite::{
+    Connector, connect_async, connect_async_tls_with_config, tungstenite::Message,
+};
+use tracing::{error, info, warn};
 
 use crate::{
-    Error, Result,
     config::UnifiConfig,
-    events::{EventType, ProtectEvent, SmartDetectType, WebSocketMessage},
+    error::{Error, Result},
+    events::{ProtectEvent, WebSocketMessage},
+    models::{Bootstrap, parse_camera, parse_nvr, parse_protect_event},
 };
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Camera {
-    pub id: String,
-    pub name: String,
-    pub mac: String,
-    pub model: String,
-    pub is_connected: bool,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Bootstrap {
-    pub cameras: HashMap<String, Camera>,
-    pub nvr: Nvr,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Nvr {
-    pub id: String,
-    pub name: String,
-    pub version: String,
-    pub timezone: String,
-}
+pub mod config;
+pub mod error;
+pub mod events;
+pub mod models;
 
 pub struct ProtectClient {
     client: Client,
@@ -151,10 +136,20 @@ impl ProtectClient {
         Ok(Bootstrap { cameras, nvr })
     }
 
-    pub async fn download_event_video(&self, event: &ProtectEvent) -> Result<Vec<u8>> {
+    pub async fn download_event_video(
+        &self,
+        camera_id: &str,
+        start: DateTime<Utc>,
+        end: DateTime<Utc>,
+    ) -> Result<Vec<u8>> {
         let download_url = self
             .base_url
-            .join(&format!("/proxy/protect/api/events/{}/video", event.id))
+            .join(&format!(
+                "/proxy/protect/api/video/export?camera={}&start={}&end={}",
+                camera_id,
+                start.timestamp_millis(),
+                end.timestamp_millis()
+            ))
             .map_err(|e| Error::General(format!("Invalid URL: {e}")))?;
 
         let mut request = self.client.get(download_url);
@@ -171,9 +166,9 @@ impl ProtectClient {
 
         if !response.status().is_success() {
             return Err(Error::Api(format!(
-                "Video download failed: {} for event {}",
+                "Video download failed: {} for camera {}",
                 response.status(),
-                event.id
+                camera_id
             )));
         }
 
@@ -181,7 +176,10 @@ impl ProtectClient {
         Ok(video_data.to_vec())
     }
 
-    pub async fn connect_websocket(&self) -> Result<mpsc::Receiver<ProtectEvent>> {
+    pub async fn connect_websocket(
+        &self,
+        bootstrap: Bootstrap,
+    ) -> Result<mpsc::Receiver<ProtectEvent>> {
         let ws_url = format!(
             "wss://{}:{}/proxy/protect/ws/updates",
             self.config.address, self.config.port
@@ -200,23 +198,74 @@ impl ProtectClient {
             );
         }
 
-        let (ws_stream, _) = connect_async(request).await?;
+        let (ws_stream, _) = match self.config.verify_ssl {
+            true => connect_async(request).await?,
+            false => {
+                // Create TLS connector that accepts invalid certificates
+                let tls_connector = native_tls::TlsConnector::builder()
+                    .danger_accept_invalid_certs(true)
+                    .danger_accept_invalid_hostnames(true)
+                    .build()?;
+
+                let connector = Connector::NativeTls(tls_connector);
+                connect_async_tls_with_config(request, None, false, Some(connector)).await?
+            }
+        };
+
         let (_ws_sender, mut ws_receiver) = ws_stream.split();
 
         let (tx, rx) = mpsc::channel(100);
 
+        // todo: handle this properly; we don't want to spawn this in the background, losing
+        //  the join handle and assuming we'll never get errors
         tokio::spawn(async move {
+            let mut pending_motion_events: HashMap<String, WebSocketMessage> = HashMap::new();
             while let Some(message) = ws_receiver.next().await {
                 match message {
-                    Ok(Message::Text(text)) => {
-                        debug!("WebSocket message: {}", text);
+                    Ok(Message::Binary(binary)) => {
+                        let Ok(ws_message) = WebSocketMessage::from_binary(&binary)
+                            .inspect_err(|e| warn!(error = ?e, "Error parsing message"))
+                        else {
+                            continue;
+                        };
 
-                        if let Ok(ws_message) = serde_json::from_str::<WebSocketMessage>(&text) {
-                            if let Ok(event) = parse_protect_event(&ws_message) {
-                                if let Err(e) = tx.send(event).await {
-                                    error!("Failed to send event through channel: {}", e);
-                                    break;
-                                }
+                        // if it's a pending motion event we insert it in our map to join the diff
+                        // with later for the whole picture
+                        if let Some(id) = ws_message.new_motion_event() {
+                            pending_motion_events.insert(id.clone(), ws_message.clone());
+                            continue;
+                        }
+
+                        let Some(id) = ws_message.backup_candidate() else {
+                            // it wasn't a new motion event and also isn't a backup candidate...
+                            // move along
+                            continue;
+                        };
+
+                        // it is a backup candidate!
+                        let Some(original) = pending_motion_events.remove(&id) else {
+                            warn!(
+                                "We missed the start of this motion event and can't get the start time for it to export"
+                            );
+                            continue;
+                        };
+
+                        let original_ws_message = original;
+                        let motion_event_completed_ws_message = ws_message;
+                        let known_camera = motion_event_completed_ws_message
+                            .action_frame
+                            .record_id
+                            .as_ref()
+                            .and_then(|c| bootstrap.cameras.get(c));
+
+                        if let Ok(event) = parse_protect_event(
+                            &original_ws_message,
+                            &motion_event_completed_ws_message,
+                            known_camera,
+                        ) {
+                            if let Err(e) = tx.send(event).await {
+                                error!("Failed to send event through channel: {}", e);
+                                break;
                             }
                         }
                     }
@@ -246,149 +295,4 @@ fn extract_auth_cookie(cookie_str: &str) -> Option<String> {
         }
     }
     None
-}
-
-fn parse_camera(camera_data: &Value) -> Result<Camera> {
-    Ok(Camera {
-        id: camera_data
-            .get("id")
-            .and_then(|v| v.as_str())
-            .unwrap_or("")
-            .to_string(),
-        name: camera_data
-            .get("name")
-            .and_then(|v| v.as_str())
-            .unwrap_or("")
-            .to_string(),
-        mac: camera_data
-            .get("mac")
-            .and_then(|v| v.as_str())
-            .unwrap_or("")
-            .to_string(),
-        model: camera_data
-            .get("type")
-            .and_then(|v| v.as_str())
-            .unwrap_or("")
-            .to_string(),
-        is_connected: camera_data
-            .get("isConnected")
-            .and_then(|v| v.as_bool())
-            .unwrap_or(false),
-    })
-}
-
-fn parse_nvr(nvr_data: &Value) -> Result<Nvr> {
-    Ok(Nvr {
-        id: nvr_data
-            .get("id")
-            .and_then(|v| v.as_str())
-            .unwrap_or("")
-            .to_string(),
-        name: nvr_data
-            .get("name")
-            .and_then(|v| v.as_str())
-            .unwrap_or("")
-            .to_string(),
-        version: nvr_data
-            .get("version")
-            .and_then(|v| v.as_str())
-            .unwrap_or("")
-            .to_string(),
-        timezone: nvr_data
-            .get("timezone")
-            .and_then(|v| v.as_str())
-            .unwrap_or("UTC")
-            .to_string(),
-    })
-}
-
-fn parse_protect_event(ws_message: &WebSocketMessage) -> Result<ProtectEvent> {
-    let data = &ws_message.data;
-
-    let id = data
-        .get("id")
-        .and_then(|v| v.as_str())
-        .ok_or_else(|| Error::Event("Missing event ID".to_string()))?
-        .to_string();
-
-    let camera_id = data
-        .get("camera")
-        .and_then(|v| v.as_str())
-        .ok_or_else(|| Error::Event("Missing camera ID".to_string()))?
-        .to_string();
-
-    let camera_name = data
-        .get("cameraName")
-        .and_then(|v| v.as_str())
-        .unwrap_or("")
-        .to_string();
-
-    let start_timestamp = data
-        .get("start")
-        .and_then(|v| v.as_i64())
-        .ok_or_else(|| Error::Event("Missing start timestamp".to_string()))?;
-
-    let start = DateTime::from_timestamp_millis(start_timestamp)
-        .ok_or_else(|| Error::Event("Invalid start timestamp".to_string()))?;
-
-    let end = data
-        .get("end")
-        .and_then(|v| v.as_i64())
-        .and_then(DateTime::from_timestamp_millis);
-
-    let event_type = data
-        .get("type")
-        .and_then(|v| v.as_str())
-        .map(|s| match s {
-            "motion" => EventType::Motion,
-            "ring" => EventType::Ring,
-            "line" => EventType::Line,
-            "smartDetectZone" => EventType::SmartDetect,
-            _ => EventType::Motion,
-        })
-        .unwrap_or(EventType::Motion);
-
-    let smart_detect_types = data
-        .get("smartDetectTypes")
-        .and_then(|v| v.as_array())
-        .map(|arr| {
-            arr.iter()
-                .filter_map(|v| v.as_str())
-                .filter_map(|s| match s {
-                    "person" => Some(SmartDetectType::Person),
-                    "vehicle" => Some(SmartDetectType::Vehicle),
-                    "package" => Some(SmartDetectType::Package),
-                    "animal" => Some(SmartDetectType::Animal),
-                    "face" => Some(SmartDetectType::Face),
-                    "licensePlate" => Some(SmartDetectType::LicensePlate),
-                    _ => None,
-                })
-                .collect()
-        })
-        .unwrap_or_default();
-
-    let thumbnail_id = data
-        .get("thumbnailId")
-        .and_then(|v| v.as_str())
-        .map(|s| s.to_string());
-
-    let heatmap_id = data
-        .get("heatmapId")
-        .and_then(|v| v.as_str())
-        .map(|s| s.to_string());
-
-    let is_finished = end.is_some();
-
-    Ok(ProtectEvent {
-        id,
-        camera_id,
-        camera_name,
-        start,
-        end,
-        event_type,
-        smart_detect_types,
-        thumbnail_id,
-        heatmap_id,
-        is_finished,
-    })
 }

@@ -1,7 +1,8 @@
+use std::path::Path;
+
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use sqlx::{Row, SqlitePool, sqlite::SqlitePoolOptions};
-use std::path::Path;
+use sqlx::{Row, SqlitePool, migrate::MigrateDatabase, sqlite::SqlitePoolOptions};
 
 use crate::Result;
 
@@ -29,6 +30,10 @@ pub struct Database {
 
 impl Database {
     pub async fn new(db_path: &Path) -> Result<Self> {
+        if !sqlx::Sqlite::database_exists(&db_path.to_string_lossy()).await? {
+            sqlx::Sqlite::create_database(&db_path.to_string_lossy()).await?;
+        }
+
         let database_url = format!("sqlite:{}", db_path.display());
 
         let pool = SqlitePoolOptions::new()

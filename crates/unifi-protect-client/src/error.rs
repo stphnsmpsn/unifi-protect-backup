@@ -1,13 +1,5 @@
 use thiserror::Error;
 
-pub mod api;
-pub mod backup;
-pub mod config;
-pub mod database;
-
-pub mod events;
-pub use config::Config;
-
 pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Error, Debug)]
@@ -29,6 +21,9 @@ pub enum Error {
 
     #[error(transparent)]
     Toml(#[from] toml::de::Error),
+
+    #[error(transparent)]
+    NativeTls(#[from] native_tls::Error),
 
     #[error("Backup process failed: {0}")]
     Backup(String),

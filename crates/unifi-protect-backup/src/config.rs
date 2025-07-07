@@ -4,53 +4,30 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use clap::Parser;
 use serde::{Deserialize, Serialize};
+use tracing::info;
+use unifi_protect_client::config::UnifiConfig;
 
-use crate::Result;
+use crate::{Result, backup};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all(deserialize = "kebab-case"))]
 pub struct Config {
     pub unifi: UnifiConfig,
     pub database: DatabaseConfig,
-    pub backup: Option<BackupConfig>,
+    pub backup: backup::Config,
     pub notifications: Option<NotificationConfig>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct UnifiConfig {
-    pub address: String,
-    pub port: u16,
-    pub username: String,
-    pub password: String,
-    pub verify_ssl: bool,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct BackupConfig {
-    pub rsync_host: String,
-    pub rsync_user: String,
-    pub rsync_path: String,
-    pub ssh_key_path: Option<PathBuf>,
-    pub borg_repo: String,
-    pub borg_passphrase: Option<String>,
-    pub retention_days: u32,
-    pub file_structure_format: String,
-    pub detection_types: Vec<String>,
-    pub ignore_cameras: Vec<String>,
-    pub cameras: Vec<String>,
-    pub max_event_length_seconds: u32,
-    pub download_buffer_size: u64,
-    pub parallel_uploads: u32,
-    pub purge_interval_hours: u32,
-    pub skip_missing: bool,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all(deserialize = "kebab-case"))]
 pub struct DatabaseConfig {
     pub path: PathBuf,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all(deserialize = "kebab-case"))]
 pub struct NotificationConfig {
     pub smtp_host: Option<String>,
     pub smtp_port: Option<u16>,
@@ -59,9 +36,6 @@ pub struct NotificationConfig {
     pub email_from: Option<String>,
     pub email_to: Option<String>,
 }
-
-pub use clap::Parser;
-use tracing::info;
 
 #[derive(Parser, Debug)]
 pub struct Args<T: serde::de::DeserializeOwned + Clone + Send + Sync + 'static> {
@@ -149,12 +123,20 @@ async fn prompt_for_config() -> Result<String> {
     let password = prompt_with_default("Password", "your-password")?;
     let verify_ssl = prompt_with_default("Verify SSL (true/false)", "true")?;
 
-    let rsync_host = prompt_with_default("Rsync host", "rsync.net")?;
-    let rsync_user = prompt_with_default("Rsync user", "user")?;
-    let rsync_path = prompt_with_default("Rsync path", "unifi-protect")?;
-    let ssh_key_path = prompt_with_default("SSH key path (optional)", "")?;
-    let borg_repo = prompt_with_default("Borg repository", "user@rsync.net:unifi-protect")?;
-    let borg_passphrase = prompt_with_default("Borg passphrase (optional)", "")?;
+    // Prompt for backup target selection
+    println!("\nSelect backup target:");
+    println!("1. Borg (recommended)");
+    println!("Other backup targets will be supported in future versions.");
+    let backup_target = prompt_with_default("Backup target", "1")?;
+
+    let backup_target_num = backup_target.parse::<u32>().unwrap_or(1);
+    if backup_target_num != 1 {
+        println!("Only Borg backup is currently supported. Using Borg.");
+    }
+
+    let (rsync_host, rsync_user, rsync_path, ssh_key_path, borg_repo, borg_passphrase) =
+        prompt_for_borg_config()?;
+
     let retention_days = prompt_with_default("Retention days", "30")?;
     let detection_types =
         prompt_with_default("Detection types (comma-separated)", "motion,person,vehicle")?;
@@ -173,7 +155,7 @@ async fn prompt_for_config() -> Result<String> {
     let database_path = prompt_with_default(
         "Database path",
         &format!(
-            "{}/unifi-protect-backup/events.db",
+            "{}/.unifi-protect-backup/events.db",
             std::env::var("HOME").unwrap_or_else(|_| ".".to_string())
         ),
     )?;
@@ -222,25 +204,27 @@ address = "{address}"
 port = {port}
 username = "{username}"
 password = "{password}"
-verify_ssl = {verify_ssl}
+verify-ssl = {verify_ssl}
 
 [backup]
-rsync_host = "{rsync_host}"
-rsync_user = "{rsync_user}"
-rsync_path = "{rsync_path}"
-{ssh_key_path_line}
-borg_repo = "{borg_repo}"
-{borg_passphrase_line}
-retention_days = {retention_days}
-detection_types = [{detection_types_array}]
-file_structure_format = "{file_structure_format}"
-ignore_cameras = [{ignore_cameras_array}]
+retention-days = {retention_days}
+detection-types = [{detection_types_array}]
+file-structure-format = "{file_structure_format}"
+ignore-cameras = [{ignore_cameras_array}]
 cameras = [{cameras_array}]
-max_event_length_seconds = {max_event_length_seconds}
-download_buffer_size = {download_buffer_size}
-parallel_uploads = {parallel_uploads}
-purge_interval_hours = {purge_interval_hours}
-skip_missing = {skip_missing}
+max-event-length-seconds = {max_event_length_seconds}
+download-buffer-size = {download_buffer_size}
+parallel-uploads = {parallel_uploads}
+purge-interval-hours = {purge_interval_hours}
+skip-missing = {skip_missing}
+
+[backup.remote.borg]
+rsync-host = "{rsync_host}"
+rsync-user = "{rsync_user}"
+rsync-path = "{rsync_path}"
+{ssh_key_path_line}
+borg-repo = "{borg_repo}"
+{borg_passphrase_line}
 
 [database]
 path = "{database_path}"
@@ -248,6 +232,26 @@ path = "{database_path}"
     );
 
     Ok(config)
+}
+
+fn prompt_for_borg_config() -> Result<(String, String, String, String, String, String)> {
+    println!("\nConfiguring Borg backup...");
+
+    let rsync_host = prompt_with_default("Rsync host", "rsync.net")?;
+    let rsync_user = prompt_with_default("Rsync user", "user")?;
+    let rsync_path = prompt_with_default("Rsync path", "unifi-protect")?;
+    let ssh_key_path = prompt_with_default("SSH key path (optional)", "")?;
+    let borg_repo = prompt_with_default("Borg repository", "user@rsync.net:unifi-protect")?;
+    let borg_passphrase = prompt_with_default("Borg passphrase (optional)", "")?;
+
+    Ok((
+        rsync_host,
+        rsync_user,
+        rsync_path,
+        ssh_key_path,
+        borg_repo,
+        borg_passphrase,
+    ))
 }
 
 fn prompt_with_default(prompt: &str, default: &str) -> Result<String> {
