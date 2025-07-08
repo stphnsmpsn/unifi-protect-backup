@@ -8,7 +8,7 @@ use crate::Result;
 pub mod borg;
 
 #[async_trait]
-pub trait Backup {
+pub trait Backup: Send + Sync {
     async fn init(&self) -> Result<()>;
     async fn backup(&self, event: &ProtectEvent, video_data: &[u8]) -> Result<String>;
     async fn prune(&self) -> Result<()>;

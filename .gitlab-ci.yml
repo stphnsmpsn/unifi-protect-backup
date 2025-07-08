@@ -1,0 +1,3 @@
+include:
+  - project: 'stphnsmpsn/ci-templates'
+    file: '.gitlab-rust.yml'

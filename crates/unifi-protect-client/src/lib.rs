@@ -1,8 +1,5 @@
-use std::collections::HashMap;
-
-use chrono::{DateTime, Utc};
 use futures_util::StreamExt;
-use reqwest::{Client, Url};
+use reqwest::{Client, RequestBuilder, Url};
 use serde_json::Value;
 use tokio::sync::mpsc;
 use tokio_tungstenite::{
@@ -13,8 +10,8 @@ use tracing::{error, info, warn};
 use crate::{
     config::UnifiConfig,
     error::{Error, Result},
-    events::{ProtectEvent, WebSocketMessage},
-    models::{Bootstrap, parse_camera, parse_nvr, parse_protect_event},
+    events::WebSocketMessage,
+    models::{Bootstrap, BootstrapRawResponse},
 };
 
 pub mod config;
@@ -89,21 +86,26 @@ impl ProtectClient {
         Ok(())
     }
 
+    fn add_headers(&self, mut builder: RequestBuilder) -> RequestBuilder {
+        if let Some(ref cookie) = self.auth_cookie {
+            builder = builder.header("Cookie", cookie);
+        }
+
+        if let Some(ref csrf) = self.csrf_token {
+            builder = builder.header("X-CSRF-Token", csrf);
+        }
+
+        builder
+    }
+
     pub async fn get_bootstrap(&self) -> Result<Bootstrap> {
         let bootstrap_url = self
             .base_url
             .join("/proxy/protect/api/bootstrap")
             .map_err(|e| Error::General(format!("Invalid URL: {e}")))?;
 
-        let mut request = self.client.get(bootstrap_url);
-
-        if let Some(ref cookie) = self.auth_cookie {
-            request = request.header("Cookie", cookie);
-        }
-
-        if let Some(ref csrf) = self.csrf_token {
-            request = request.header("X-CSRF-Token", csrf);
-        }
+        let request = self.client.get(bootstrap_url);
+        let request = self.add_headers(request);
 
         let response = request.send().await?;
 
@@ -114,53 +116,28 @@ impl ProtectClient {
             )));
         }
 
-        let bootstrap_data: Value = response.json().await?;
+        let bootstrap_value: Value = response.json().await?;
+        let bootstrap_raw_response: BootstrapRawResponse = serde_json::from_value(bootstrap_value)?;
+        let bootstrap = Bootstrap::from(bootstrap_raw_response);
 
-        // Parse cameras
-        let mut cameras = HashMap::new();
-        if let Some(camera_array) = bootstrap_data.get("cameras").and_then(|v| v.as_array()) {
-            for camera_data in camera_array {
-                if let Ok(camera) = parse_camera(camera_data) {
-                    cameras.insert(camera.id.clone(), camera);
-                }
-            }
-        }
-
-        // Parse NVR info
-        let nvr = if let Some(nvr_data) = bootstrap_data.get("nvr") {
-            parse_nvr(nvr_data)?
-        } else {
-            return Err(Error::Api("No NVR data in bootstrap".to_string()));
-        };
-
-        Ok(Bootstrap { cameras, nvr })
+        Ok(bootstrap)
     }
 
     pub async fn download_event_video(
         &self,
         camera_id: &str,
-        start: DateTime<Utc>,
-        end: DateTime<Utc>,
+        start: i64,
+        end: i64,
     ) -> Result<Vec<u8>> {
         let download_url = self
             .base_url
             .join(&format!(
-                "/proxy/protect/api/video/export?camera={}&start={}&end={}",
-                camera_id,
-                start.timestamp_millis(),
-                end.timestamp_millis()
+                "/proxy/protect/api/video/export?camera={camera_id}&start={start}&end={end}",
             ))
             .map_err(|e| Error::General(format!("Invalid URL: {e}")))?;
 
-        let mut request = self.client.get(download_url);
-
-        if let Some(ref cookie) = self.auth_cookie {
-            request = request.header("Cookie", cookie);
-        }
-
-        if let Some(ref csrf) = self.csrf_token {
-            request = request.header("X-CSRF-Token", csrf);
-        }
+        let request = self.client.get(download_url);
+        let request = self.add_headers(request);
 
         let response = request.send().await?;
 
@@ -176,10 +153,7 @@ impl ProtectClient {
         Ok(video_data.to_vec())
     }
 
-    pub async fn connect_websocket(
-        &self,
-        bootstrap: Bootstrap,
-    ) -> Result<mpsc::Receiver<ProtectEvent>> {
+    pub async fn connect_websocket(&self) -> Result<mpsc::Receiver<WebSocketMessage>> {
         let ws_url = format!(
             "wss://{}:{}/proxy/protect/ws/updates",
             self.config.address, self.config.port
@@ -219,7 +193,6 @@ impl ProtectClient {
         // todo: handle this properly; we don't want to spawn this in the background, losing
         //  the join handle and assuming we'll never get errors
         tokio::spawn(async move {
-            let mut pending_motion_events: HashMap<String, WebSocketMessage> = HashMap::new();
             while let Some(message) = ws_receiver.next().await {
                 match message {
                     Ok(Message::Binary(binary)) => {
@@ -229,44 +202,9 @@ impl ProtectClient {
                             continue;
                         };
 
-                        // if it's a pending motion event we insert it in our map to join the diff
-                        // with later for the whole picture
-                        if let Some(id) = ws_message.new_motion_event() {
-                            pending_motion_events.insert(id.clone(), ws_message.clone());
-                            continue;
-                        }
-
-                        let Some(id) = ws_message.backup_candidate() else {
-                            // it wasn't a new motion event and also isn't a backup candidate...
-                            // move along
-                            continue;
-                        };
-
-                        // it is a backup candidate!
-                        let Some(original) = pending_motion_events.remove(&id) else {
-                            warn!(
-                                "We missed the start of this motion event and can't get the start time for it to export"
-                            );
-                            continue;
-                        };
-
-                        let original_ws_message = original;
-                        let motion_event_completed_ws_message = ws_message;
-                        let known_camera = motion_event_completed_ws_message
-                            .action_frame
-                            .record_id
-                            .as_ref()
-                            .and_then(|c| bootstrap.cameras.get(c));
-
-                        if let Ok(event) = parse_protect_event(
-                            &original_ws_message,
-                            &motion_event_completed_ws_message,
-                            known_camera,
-                        ) {
-                            if let Err(e) = tx.send(event).await {
-                                error!("Failed to send event through channel: {}", e);
-                                break;
-                            }
+                        if let Err(e) = tx.send(ws_message).await {
+                            error!("Failed to send event through channel: {}", e);
+                            break;
                         }
                     }
                     Ok(Message::Close(_)) => {
@@ -295,4 +233,34 @@ fn extract_auth_cookie(cookie_str: &str) -> Option<String> {
         }
     }
     None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_deserialize_bootstrap_data() {
+        let data = r#"{
+            "cameras": [
+                {
+                  "id": "1",
+                  "name": "Test Camera",
+                  "mac": "",
+                  "model": "",
+                  "isConnected": true
+                }
+            ],
+            "nvr": {
+               "id": "",
+               "name": "",
+               "version": "",
+               "timezone": "UTC"
+            }
+        }"#;
+
+        let bootstrap_raw = serde_json::from_str::<BootstrapRawResponse>(data);
+        assert!(bootstrap_raw.is_ok());
+        let _ = Bootstrap::from(bootstrap_raw.expect("infallible"));
+    }
 }

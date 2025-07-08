@@ -1,0 +1,50 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            SELECT id as \"id!: String\", \n                   event_type as \"event_type!: _\",\n                   camera_id as \"camera_id!: _\",\n                   start_time as \"start_time!: _\",\n                   end_time as \"end_time?: _\",\n                   backed_up as \"backed_up!: _\"\n            FROM events WHERE camera_id = ?\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: String",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "event_type!: _",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "camera_id!: _",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "start_time!: _",
+        "ordinal": 3,
+        "type_info": "Integer"
+      },
+      {
+        "name": "end_time?: _",
+        "ordinal": 4,
+        "type_info": "Integer"
+      },
+      {
+        "name": "backed_up!: _",
+        "ordinal": 5,
+        "type_info": "Bool"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      true,
+      false,
+      false,
+      false,
+      true,
+      false
+    ]
+  },
+  "hash": "439c71b20570d9eb9936bdbdcea6639cf5306fca5b850ea1e88e3dbec4be750c"
+}

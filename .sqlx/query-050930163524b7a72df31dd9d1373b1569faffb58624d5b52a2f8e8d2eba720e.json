@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM events WHERE start_time < ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "050930163524b7a72df31dd9d1373b1569faffb58624d5b52a2f8e8d2eba720e"
+}
