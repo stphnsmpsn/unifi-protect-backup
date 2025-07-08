@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            INSERT OR REPLACE INTO events (id, event_type, camera_id, start_time, end_time, backed_up)\n            VALUES (?, ?, ?, ?, ?, ?)\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 6
+    },
+    "nullable": []
+  },
+  "hash": "5acae99f1451a144ed92e1057c69f43198bba069c06926a12ef6ea1a61444cf7"
+}

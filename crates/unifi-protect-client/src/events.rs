@@ -11,8 +11,8 @@ pub struct ProtectEvent {
     pub id: String,
     pub camera_id: String,
     pub camera_name: Option<String>,
-    pub start: Option<DateTime<Utc>>,
-    pub end: Option<DateTime<Utc>>,
+    pub start_time: Option<i64>,
+    pub end_time: Option<i64>,
     pub event_type: EventType,
     pub smart_detect_types: Vec<SmartDetectType>,
     pub thumbnail_id: Option<String>,
@@ -108,11 +108,17 @@ impl ProtectEvent {
     }
 
     pub fn format_filename(&self, format_string: &str) -> String {
-        let detection_type = self.format_detection_type();
-        let start_date = self.start.unwrap_or_else(Utc::now).format("%Y-%m-%d");
-        let start_time = self.start.unwrap_or_else(Utc::now).format("%H-%M-%S");
+        let start_time = self.start_time.map_or_else(Utc::now, |t| {
+            DateTime::<Utc>::from_timestamp_millis(t).unwrap_or_else(Utc::now)
+        });
         let end_time = self
-            .end
+            .end_time
+            .map(|t| DateTime::<Utc>::from_timestamp_millis(t).unwrap_or_else(Utc::now));
+
+        let detection_type = self.format_detection_type();
+        let start_date = start_time.format("%Y-%m-%d");
+        let start_time = start_time.format("%H-%M-%S");
+        let end_time = end_time
             .map(|e| e.format("%H-%M-%S").to_string())
             .unwrap_or_else(|| "ongoing".to_string());
 
@@ -224,31 +230,6 @@ impl TryFrom<&[u8]> for ProtectWebSocketRawFrames {
             action: action_json.to_string(),
             data: data_json.to_string(),
         })
-    }
-}
-
-impl WebSocketMessage {
-    /// will return the id of the new motion event if it is one
-    pub fn new_motion_event(&self) -> Option<String> {
-        match (
-            &self.action_frame.action,
-            &self.data_frame.kind,
-            &self.data_frame.id,
-        ) {
-            (WebSocketAction::Add, Some(Kind::Motion), Some(id)) => Some(id.clone()),
-            _ => None,
-        }
-    }
-
-    pub fn backup_candidate(&self) -> Option<String> {
-        match (
-            &self.action_frame.record_id,
-            &self.action_frame.action,
-            &self.data_frame.end,
-        ) {
-            (Some(_), WebSocketAction::Update, Some(_)) => Some(self.action_frame.id.clone()),
-            _ => None,
-        }
     }
 }
 

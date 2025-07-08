@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            INSERT OR REPLACE INTO backups (event_id, remote_path, backup_time, size_bytes)\n            VALUES (?, ?, ?, ?)\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": []
+  },
+  "hash": "ea4cd030acef152d9f13464647b5d27090b2a3c6217f45db68e2863ce8d17024"
+}

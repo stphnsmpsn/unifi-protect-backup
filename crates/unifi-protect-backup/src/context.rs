@@ -1,10 +1,13 @@
 use std::sync::Arc;
+
+use tracing::debug;
+
 use unifi_protect_client::{ProtectClient, models::Bootstrap};
+use unifi_protect_data::Database;
 
 use crate::{
     backup::{Backup, RemoteConfig},
     config::Config,
-    database::Database,
 };
 
 pub struct Context {
@@ -20,6 +23,7 @@ impl Context {
 
         protect_client.login().await?;
         let protect_bootstrap = protect_client.get_bootstrap().await?;
+        debug!(bootstrap_data = ?protect_bootstrap, "Received Bootstrap Data from Controller");
 
         Ok(Self {
             protect_client,

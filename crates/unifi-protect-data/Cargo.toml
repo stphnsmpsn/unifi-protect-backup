@@ -1,5 +1,5 @@
 [package]
-name = "unifi-protect-client"
+name = "unifi-protect-data"
 version.workspace = true
 edition.workspace = true
 authors = ["Steve Sampson <mail@stephensampson.dev>"]
@@ -9,18 +9,9 @@ repository = "https://gitlab.stephensampson.dev/homelab/unifi-protect-backup"
 
 [dependencies]
 chrono = { workspace = true, features = ["serde"] }
-futures-util.workspace = true
-reqwest = { workspace = true, features = ["json", "stream"] }
 serde = { workspace = true, features = ["derive"] }
-serde_json.workspace = true
 sqlx = { workspace = true, features = ["sqlite", "runtime-tokio-native-tls", "chrono"] }
 thiserror.workspace = true
-tokio = { workspace = true, features = ["full"] }
-tokio-tungstenite = { workspace = true, features = ["native-tls"] }
-tracing.workspace = true
-uuid = { workspace = true, features = ["v4", "serde"] }
-toml.workspace = true
-native-tls.workspace = true
 
 [dev-dependencies]
 #tokio-test = "0.4"
