@@ -1,3 +1,11 @@
 include:
   - project: 'stphnsmpsn/ci-templates'
     file: '.gitlab-rust.yml'
+  - project: 'stphnsmpsn/ci-templates'
+    file: '.gitlab-mkdocs.yml'
+
+stages:
+  - check
+  - test
+  - build
+  - deploy

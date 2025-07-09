@@ -1,0 +1,72 @@
+site_name: UniFi Protect Backup (Rust Edition)
+site_description: High-performance backup tool for UniFi Protect with real-time event monitoring and multiple storage backends
+site_author: Steve Sampson
+site_url: https://github.com/stphnsmpsn/unifi-protect-backup-rs
+
+repo_name: stphnsmpsn/unifi-protect-backup-rs
+repo_url: https://github.com/stphnsmpsn/unifi-protect-backup-rs
+
+nav:
+  - Home: index.md
+  - Getting Started:
+    - Installation: installation.md
+    - Quick Start: quickstart.md
+  - Configuration:
+    - Configuration Reference: configuration.md
+  - Architecture:
+    - Technical Overview: architecture.md
+  - Usage:
+    - Running the Application: usage.md
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: blue
+      accent: light blue
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: blue
+      accent: light blue
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.highlight
+    - search.share
+    - content.code.copy
+    - content.code.annotate
+
+plugins:
+  - search
+  - git-revision-date-localized:
+      type: date
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.tabbed:
+      alternate_style: true
+  - def_list
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - attr_list
+  - md_in_html
+  - toc:
+      permalink: true
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/stphnsmpsn/unifi-protect-backup-rs
