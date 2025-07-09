@@ -25,7 +25,7 @@ Download the latest release from GitHub:
 
 ```bash
 # Linux x86_64
-curl -LO https://github.com/stphnsmpsn/unifi-protect-backup-rs/releases/latest/download/unifi-protect-backup-rs-linux-x86_64.tar.gz
+curl -LO https://gitlab.stephensampson.dev/homelab/unifi-protect-backup/releases/latest/download/unifi-protect-backup-rs-linux-x86_64.tar.gz
 tar -xzf unifi-protect-backup-rs-linux-x86_64.tar.gz
 sudo mv unifi-protect-backup-rs /usr/local/bin/
 
@@ -38,14 +38,14 @@ sudo chmod +x /usr/local/bin/unifi-protect-backup-rs
 If you have Rust installed:
 
 ```bash
-cargo install --git https://github.com/stphnsmpsn/unifi-protect-backup-rs
+cargo install --git https://gitlab.stephensampson.dev/homelab/unifi-protect-backup
 ```
 
 ### Option 3: Build from Source
 
 ```bash
 # Clone the repository
-git clone https://github.com/stphnsmpsn/unifi-protect-backup-rs.git
+git clone https://gitlab.stephensampson.dev/homelab/unifi-protect-backup.git
 cd unifi-protect-backup-rs
 
 # Build release version

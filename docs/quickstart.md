@@ -18,7 +18,7 @@ Choose your preferred installation method:
 === "Pre-built Binary"
     ```bash
     # Download latest release
-    curl -LO https://github.com/stphnsmpsn/unifi-protect-backup-rs/releases/latest/download/unifi-protect-backup-rs-linux-x86_64.tar.gz
+    curl -LO https://gitlab.stephensampson.dev/homelab/unifi-protect-backup/releases/latest/download/unifi-protect-backup-rs-linux-x86_64.tar.gz
     tar -xzf unifi-protect-backup-rs-linux-x86_64.tar.gz
     sudo mv unifi-protect-backup-rs /usr/local/bin/
     sudo chmod +x /usr/local/bin/unifi-protect-backup-rs
@@ -26,12 +26,12 @@ Choose your preferred installation method:
 
 === "Cargo Install"
     ```bash
-    cargo install --git https://github.com/stphnsmpsn/unifi-protect-backup-rs
+    cargo install --git https://gitlab.stephensampson.dev/homelab/unifi-protect-backup
     ```
 
 === "From Source"
     ```bash
-    git clone https://github.com/stphnsmpsn/unifi-protect-backup-rs.git
+    git clone https://gitlab.stephensampson.dev/homelab/unifi-protect-backup.git
     cd unifi-protect-backup-rs
     cargo build --release
     cargo install --path .
