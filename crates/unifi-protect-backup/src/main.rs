@@ -9,7 +9,6 @@ use unifi_protect_backup::{
     config::{Args, Config, check_and_create_config},
     context::Context,
     task,
-    task::UnifiEventListener,
 };
 
 #[tokio::main]
@@ -38,14 +37,15 @@ async fn main() -> Result<()> {
 
     info!("Starting UniFi Protect Backup");
 
-    let context = Arc::new(Context::new(config).await?);
-    let mut unifi_event_listener = UnifiEventListener::new(context.clone());
+    let context = Arc::new(Context::new(config.clone()).await?);
+    let mut unifi_event_listener = task::UnifiEventListener::new(context.clone());
+    let mut db_poller = task::BackupDbPoller::new(context.clone(), config.backup.clone());
 
     tokio::select! {
         res = unifi_event_listener.run() => {
             warn!("Unifi Event Listener stopped: {:?}", res);
         }
-        res = task::db_poller(context.clone()) => {
+        res = db_poller.run() => {
             warn!("DB Poller stopped: {:?}", res);
         }
     }

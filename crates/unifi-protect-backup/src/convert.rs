@@ -1,6 +1,6 @@
 use unifi_protect_client::{
     events::{EventType, ProtectEvent, WebSocketMessage},
-    models::Camera,
+    models::{Bootstrap, Camera},
 };
 use unifi_protect_data::Event;
 
@@ -14,6 +14,24 @@ pub fn protect_event_to_database_event(protect_event: &ProtectEvent) -> Event {
         start_time: protect_event.start_time.unwrap(),
         end_time: protect_event.end_time,
         backed_up: false,
+    }
+}
+
+pub fn protect_event_from_database_event(event: Event, bootstrap: &Bootstrap) -> ProtectEvent {
+    ProtectEvent {
+        id: event.id,
+        camera_id: event.camera_id.clone(),
+        camera_name: bootstrap
+            .cameras
+            .get(&event.camera_id)
+            .map(|c| c.name.clone()),
+        start_time: Some(event.start_time),
+        end_time: event.end_time,
+        event_type: EventType::Motion, // todo(steve.sampson): extract this
+        smart_detect_types: vec![],    // todo(steve.sampson): extract this
+        thumbnail_id: None,            // todo(steve.sampson): extract this
+        heatmap_id: None,              // todo(steve.sampson): extract this
+        is_finished: event.end_time.is_some(),
     }
 }
 

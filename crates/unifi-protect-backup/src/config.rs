@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use tracing::info;
 use unifi_protect_client::config::UnifiConfig;
 
-use crate::{Result, backup};
+use crate::{Result, archive, backup};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all(deserialize = "kebab-case"))]
@@ -17,6 +17,7 @@ pub struct Config {
     pub unifi: UnifiConfig,
     pub database: DatabaseConfig,
     pub backup: backup::Config,
+    pub archive: archive::Config,
     pub notifications: Option<NotificationConfig>,
 }
 
@@ -124,20 +125,13 @@ async fn prompt_for_config() -> Result<String> {
     let verify_ssl = prompt_with_default("Verify SSL (true/false)", "true")?;
 
     // Prompt for backup target selection
-    println!("\nSelect backup target:");
-    println!("1. Borg (recommended)");
-    println!("Other backup targets will be supported in future versions.");
-    let backup_target = prompt_with_default("Backup target", "1")?;
+    println!("\nSelect backup targets (multiple selections supported):");
+    println!("1. Local filesystem");
+    println!("2. Rclone (cloud storage)");
+    let backup_targets = prompt_with_default("Backup targets (comma-separated)", "1")?;
 
-    let backup_target_num = backup_target.parse::<u32>().unwrap_or(1);
-    if backup_target_num != 1 {
-        println!("Only Borg backup is currently supported. Using Borg.");
-    }
-
-    let (rsync_host, rsync_user, rsync_path, ssh_key_path, borg_repo, borg_passphrase) =
-        prompt_for_borg_config()?;
-
-    let retention_days = prompt_with_default("Retention days", "30")?;
+    let retention_period = prompt_with_default("Backup retention period (e.g., 30d, 1w)", "30d")?;
+    let poll_interval = prompt_with_default("Poll interval (e.g., 30s, 1m)", "30s")?;
     let detection_types =
         prompt_with_default("Detection types (comma-separated)", "motion,person,vehicle")?;
     let file_structure_format = prompt_with_default(
@@ -146,11 +140,28 @@ async fn prompt_for_config() -> Result<String> {
     )?;
     let ignore_cameras = prompt_with_default("Ignore cameras (comma-separated, optional)", "")?;
     let cameras = prompt_with_default("Cameras to backup (comma-separated, optional)", "")?;
-    let max_event_length_seconds = prompt_with_default("Max event length (seconds)", "300")?;
+    let max_event_length = prompt_with_default("Max event length (e.g., 5m, 300s)", "5m")?;
     let download_buffer_size = prompt_with_default("Download buffer size (bytes)", "8192")?;
     let parallel_uploads = prompt_with_default("Parallel uploads", "3")?;
-    let purge_interval_hours = prompt_with_default("Purge interval (hours)", "24")?;
+    let purge_interval = prompt_with_default("Purge interval (e.g., 24h, 1d)", "24h")?;
     let skip_missing = prompt_with_default("Skip missing files (true/false)", "false")?;
+
+    // Archive configuration
+    println!("\nConfiguring archive settings (for long-term storage):");
+    let archive_interval = prompt_with_default("Archive interval (e.g., 1h, 1d, 1w)", "1d")?;
+    let archive_retention_period =
+        prompt_with_default("Archive retention period (e.g., 30d, 1y)", "365d")?;
+    let archive_file_structure_format = prompt_with_default(
+        "Archive file structure format",
+        "{camera_name}/{date}/{time}_{detection_type}.mp4",
+    )?;
+    let archive_purge_interval =
+        prompt_with_default("Archive purge interval (e.g., 1h, 1d, 1w)", "1w")?;
+
+    // Prompt for Borg configuration
+    println!("\nConfiguring Borg archive (recommended for long-term storage):");
+    let (rsync_host, rsync_user, rsync_path, ssh_key_path, borg_repo, borg_passphrase) =
+        prompt_for_borg_config()?;
 
     let database_path = prompt_with_default(
         "Database path",
@@ -187,16 +198,33 @@ async fn prompt_for_config() -> Result<String> {
     };
 
     let ssh_key_path_line = if ssh_key_path.is_empty() {
-        "# ssh_key_path = \"/path/to/ssh/key\"".to_string()
+        "# ssh-key-path = \"/path/to/ssh/key\"".to_string()
     } else {
-        format!("ssh_key_path = \"{ssh_key_path}\"")
+        format!("ssh-key-path = \"{ssh_key_path}\"")
     };
 
     let borg_passphrase_line = if borg_passphrase.is_empty() {
-        "# borg_passphrase = \"your-passphrase\"".to_string()
+        "# borg-passphrase = \"your-passphrase\"".to_string()
     } else {
-        format!("borg_passphrase = \"{borg_passphrase}\"")
+        format!("borg-passphrase = \"{borg_passphrase}\"")
     };
+
+    // Generate backup remote configurations based on selections
+    let mut backup_remotes = Vec::new();
+    for target in backup_targets.split(',') {
+        match target.trim() {
+            "1" => {
+                let local_path = prompt_with_default("Local backup path", "./data")?;
+                backup_remotes.push(format!("{{ Local = {{ path-buf = \"{local_path}\" }} }}"));
+            }
+            "2" => backup_remotes.push("{ Rclone = {} }".to_string()),
+            _ => {
+                let local_path = prompt_with_default("Local backup path", "./data")?;
+                backup_remotes.push(format!("{{ Local = {{ path-buf = \"{local_path}\" }} }}"));
+            }
+        }
+    }
+    let backup_remotes_str = backup_remotes.join(", ");
 
     let config = format!(
         r#"[unifi]
@@ -207,24 +235,26 @@ password = "{password}"
 verify-ssl = {verify_ssl}
 
 [backup]
-retention-days = {retention_days}
-detection-types = [{detection_types_array}]
+retention-period = "{retention_period}"
+poll-interval = "{poll_interval}"
+max-event-length = "{max_event_length}"
+purge-interval = "{purge_interval}"
 file-structure-format = "{file_structure_format}"
+detection-types = [{detection_types_array}]
 ignore-cameras = [{ignore_cameras_array}]
 cameras = [{cameras_array}]
-max-event-length-seconds = {max_event_length_seconds}
 download-buffer-size = {download_buffer_size}
 parallel-uploads = {parallel_uploads}
-purge-interval-hours = {purge_interval_hours}
 skip-missing = {skip_missing}
+remote = [{backup_remotes_str}]
 
-[backup.remote.borg]
-rsync-host = "{rsync_host}"
-rsync-user = "{rsync_user}"
-rsync-path = "{rsync_path}"
-{ssh_key_path_line}
-borg-repo = "{borg_repo}"
-{borg_passphrase_line}
+[archive]
+archive-interval = "{archive_interval}"
+retention-period = "{archive_retention_period}"
+file-structure-format = "{archive_file_structure_format}"
+purge-interval = "{archive_purge_interval}"
+
+remote = [{{ Borg = {{ rsync-host = "{rsync_host}", rsync-user = "{rsync_user}", rsync-path = "{rsync_path}", {ssh_key_path_line}, borg-repo = "{borg_repo}", {borg_passphrase_line} }} }}]
 
 [database]
 path = "{database_path}"

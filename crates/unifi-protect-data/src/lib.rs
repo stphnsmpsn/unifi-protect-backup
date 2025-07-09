@@ -153,8 +153,9 @@ impl Database {
         Ok(events)
     }
 
-    pub async fn cleanup_old_events(&self, retention_days: u32) -> Result<()> {
-        let cutoff_time = (Utc::now() - chrono::Duration::days(retention_days as i64)).timestamp();
+    pub async fn cleanup_old_events(&self, retention_period: u32) -> Result<()> {
+        let cutoff_time =
+            (Utc::now() - chrono::Duration::days(retention_period as i64)).timestamp();
 
         sqlx::query!("DELETE FROM events WHERE start_time < ?", cutoff_time)
             .execute(&self.pool)
