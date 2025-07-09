@@ -1,22 +1,22 @@
 site_name: UniFi Protect Backup (Rust Edition)
 site_description: High-performance backup tool for UniFi Protect with real-time event monitoring and multiple storage backends
 site_author: Steve Sampson
-site_url: https://github.com/stphnsmpsn/unifi-protect-backup-rs
+site_url: https://gitlab.stephensampson.dev/homelab/unifi-protect-backup
 
 repo_name: stphnsmpsn/unifi-protect-backup-rs
-repo_url: https://github.com/stphnsmpsn/unifi-protect-backup-rs
+repo_url: https://gitlab.stephensampson.dev/homelab/unifi-protect-backup
 
 nav:
   - Home: index.md
   - Getting Started:
-    - Installation: installation.md
-    - Quick Start: quickstart.md
+      - Installation: installation.md
+      - Quick Start: quickstart.md
   - Configuration:
-    - Configuration Reference: configuration.md
+      - Configuration Reference: configuration.md
   - Architecture:
-    - Technical Overview: architecture.md
+      - Technical Overview: architecture.md
   - Usage:
-    - Running the Application: usage.md
+      - Running the Application: usage.md
 
 theme:
   name: material
@@ -51,7 +51,11 @@ plugins:
 markdown_extensions:
   - admonition
   - pymdownx.details
-  - pymdownx.superfences
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
   - pymdownx.highlight:
       anchor_linenums: true
   - pymdownx.inlinehilite
@@ -69,4 +73,7 @@ markdown_extensions:
 extra:
   social:
     - icon: fontawesome/brands/github
-      link: https://github.com/stphnsmpsn/unifi-protect-backup-rs
+      link: https://gitlab.stephensampson.dev/homelab/unifi-protect-backup
+
+extra_javascript:
+  - https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs
