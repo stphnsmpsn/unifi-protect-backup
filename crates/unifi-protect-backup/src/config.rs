@@ -81,7 +81,9 @@ where
     if let Some(s) = s.strip_prefix("file:") {
         std::fs::read_to_string(s).map_err(serde::de::Error::custom)
     } else if let Some(s) = s.strip_prefix("env:") {
-        std::env::var(s).map_err(|e| serde::de::Error::custom(format!("Environment variable '{}' not found: {}", s, e)))
+        std::env::var(s).map_err(|e| {
+            serde::de::Error::custom(format!("Environment variable '{s}' not found: {e}"))
+        })
     } else {
         Ok(s)
     }
