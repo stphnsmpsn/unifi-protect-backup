@@ -158,9 +158,11 @@ async fn prompt_for_config() -> Result<String> {
     let archive_purge_interval =
         prompt_with_default("Archive purge interval (e.g., 1h, 1d, 1w)", "1w")?;
 
-    // Prompt for Borg configuration
-    println!("\nConfiguring Borg archive (recommended for long-term storage):");
-    let (ssh_key_path, borg_repo, borg_passphrase) = prompt_for_borg_config()?;
+    // Prompt for archive target selection
+    println!("\nSelect archive targets (multiple selections supported):");
+    println!("1. Borg (recommended for encrypted, deduplicated storage)");
+    println!("Future versions will support additional archive targets.");
+    let archive_targets = prompt_with_default("Archive targets (comma-separated)", "1")?;
 
     let database_path = prompt_with_default(
         "Database path",
@@ -196,34 +198,66 @@ async fn prompt_for_config() -> Result<String> {
             .join(", ")
     };
 
-    let ssh_key_path_line = if ssh_key_path.is_empty() {
-        "# ssh-key-path = \"/path/to/ssh/key\"".to_string()
-    } else {
-        format!("ssh-key-path = \"{ssh_key_path}\"")
-    };
-
-    let borg_passphrase_line = if borg_passphrase.is_empty() {
-        "# borg-passphrase = \"your-passphrase\"".to_string()
-    } else {
-        format!("borg-passphrase = \"{borg_passphrase}\"")
-    };
-
     // Generate backup remote configurations based on selections
     let mut backup_remotes = Vec::new();
     for target in backup_targets.split(',') {
         match target.trim() {
-            "1" => {
+            "1" | "local" => {
                 let local_path = prompt_with_default("Local backup path", "./data")?;
-                backup_remotes.push(format!("{{ local = {{ path-buf = \"{local_path}\" }} }}"));
+                backup_remotes.push(format!("[[backup.remote]]\nlocal = {{ path-buf = \"{local_path}\" }}"));
             }
-            "2" => backup_remotes.push("{ rclone = {} }".to_string()),
+            "2" | "rclone" => backup_remotes.push("[[backup.remote]]\nrclone = {}".to_string()),
             _ => {
                 let local_path = prompt_with_default("Local backup path", "./data")?;
-                backup_remotes.push(format!("{{ Local = {{ path-buf = \"{local_path}\" }} }}"));
+                backup_remotes.push(format!("[[backup.remote]]\nlocal = {{ path-buf = \"{local_path}\" }}"));
             }
         }
     }
-    let backup_remotes_str = backup_remotes.join(", ");
+    let backup_remotes_str = backup_remotes.join("\n\n");
+
+    // Generate archive remote configurations based on selections
+    let mut archive_remotes = Vec::new();
+    for target in archive_targets.split(',') {
+        match target.trim() {
+            "1" | "borg" => {
+                println!("\nConfiguring Borg archive #{} (recommended for long-term storage):", archive_remotes.len() + 1);
+                let (ssh_key_path, borg_repo, borg_passphrase) = prompt_for_borg_config()?;
+                
+                let ssh_key_path_line = if ssh_key_path.is_empty() {
+                    "".to_string()
+                } else {
+                    format!(", ssh-key-path = \"{ssh_key_path}\"")
+                };
+                
+                let borg_passphrase_line = if borg_passphrase.is_empty() {
+                    "".to_string()
+                } else {
+                    format!(", borg-passphrase = \"{borg_passphrase}\"")
+                };
+                
+                archive_remotes.push(format!("[[archive.remote]]\nborg = {{ borg-repo = \"{borg_repo}\"{ssh_key_path_line}{borg_passphrase_line} }}"));
+            }
+            _ => {
+                println!("\nConfiguring Borg archive #{} (recommended for long-term storage):", archive_remotes.len() + 1);
+                let (ssh_key_path, borg_repo, borg_passphrase) = prompt_for_borg_config()?;
+                
+                let ssh_key_path_line = if ssh_key_path.is_empty() {
+                    "".to_string()
+                } else {
+                    format!(", ssh-key-path = \"{ssh_key_path}\"")
+                };
+                
+                let borg_passphrase_line = if borg_passphrase.is_empty() {
+                    "".to_string()
+                } else {
+                    format!(", borg-passphrase = \"{borg_passphrase}\"")
+                };
+                
+                archive_remotes.push(format!("[[archive.remote]]\nborg = {{ borg-repo = \"{borg_repo}\"{ssh_key_path_line}{borg_passphrase_line} }}"));
+            }
+        }
+    }
+    let archive_remotes_str = archive_remotes.join("\n\n");
 
     let config = format!(
         r#"[unifi]
@@ -245,14 +279,16 @@ cameras = [{cameras_array}]
 download-buffer-size = {download_buffer_size}
 parallel-uploads = {parallel_uploads}
 skip-missing = {skip_missing}
-remote = [{backup_remotes_str}]
+
+{backup_remotes_str}
 
 [archive]
 archive-interval = "{archive_interval}"
 retention-period = "{archive_retention_period}"
 file-structure-format = "{archive_file_structure_format}"
 purge-interval = "{archive_purge_interval}"
-remote = [{{ borg = {{ {ssh_key_path_line}, borg-repo = "{borg_repo}", {borg_passphrase_line} }} }}]
+
+{archive_remotes_str}
 
 [database]
 path = "{database_path}"
