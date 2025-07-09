@@ -126,7 +126,7 @@ async fn prompt_for_config() -> Result<String> {
     let port = prompt_with_default("Port", "443")?;
     let username = prompt_with_default("Username", "backup-user")?;
     let password = prompt_with_default("Password", "your-password")?;
-    let verify_ssl = prompt_with_default("Verify SSL (true/false)", "true")?;
+    let verify_ssl = prompt_with_default("Verify SSL (true/false)", "false")?;
 
     // Prompt for backup target selection
     println!("\nSelect backup targets (multiple selections supported):");
