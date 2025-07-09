@@ -1,8 +1,8 @@
 include:
   - project: 'stphnsmpsn/ci-templates'
-    file: '.gitlab-rust.yml'
-  - project: 'stphnsmpsn/ci-templates'
-    file: '.gitlab-mkdocs.yml'
+    file:
+      - .gitlab-rust.yml
+      - .gitlab-mkdocs.yml
 
 stages:
   - check
