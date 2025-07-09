@@ -151,10 +151,6 @@ async fn prompt_for_config() -> Result<String> {
     let archive_interval = prompt_with_default("Archive interval (e.g., 1h, 1d, 1w)", "1d")?;
     let archive_retention_period =
         prompt_with_default("Archive retention period (e.g., 30d, 1y)", "365d")?;
-    let archive_file_structure_format = prompt_with_default(
-        "Archive file structure format",
-        "{camera_name}/{date}/{time}_{detection_type}.mp4",
-    )?;
     let archive_purge_interval =
         prompt_with_default("Archive purge interval (e.g., 1h, 1d, 1w)", "1w")?;
 
@@ -204,12 +200,16 @@ async fn prompt_for_config() -> Result<String> {
         match target.trim() {
             "1" | "local" => {
                 let local_path = prompt_with_default("Local backup path", "./data")?;
-                backup_remotes.push(format!("[[backup.remote]]\nlocal = {{ path-buf = \"{local_path}\" }}"));
+                backup_remotes.push(format!(
+                    "[[backup.remote]]\nlocal = {{ path-buf = \"{local_path}\" }}"
+                ));
             }
             "2" | "rclone" => backup_remotes.push("[[backup.remote]]\nrclone = {}".to_string()),
             _ => {
                 let local_path = prompt_with_default("Local backup path", "./data")?;
-                backup_remotes.push(format!("[[backup.remote]]\nlocal = {{ path-buf = \"{local_path}\" }}"));
+                backup_remotes.push(format!(
+                    "[[backup.remote]]\nlocal = {{ path-buf = \"{local_path}\" }}"
+                ));
             }
         }
     }
@@ -220,39 +220,45 @@ async fn prompt_for_config() -> Result<String> {
     for target in archive_targets.split(',') {
         match target.trim() {
             "1" | "borg" => {
-                println!("\nConfiguring Borg archive #{} (recommended for long-term storage):", archive_remotes.len() + 1);
+                println!(
+                    "\nConfiguring Borg archive #{} (recommended for long-term storage):",
+                    archive_remotes.len() + 1
+                );
                 let (ssh_key_path, borg_repo, borg_passphrase) = prompt_for_borg_config()?;
-                
+
                 let ssh_key_path_line = if ssh_key_path.is_empty() {
                     "".to_string()
                 } else {
                     format!(", ssh-key-path = \"{ssh_key_path}\"")
                 };
-                
+
                 let borg_passphrase_line = if borg_passphrase.is_empty() {
                     "".to_string()
                 } else {
                     format!(", borg-passphrase = \"{borg_passphrase}\"")
                 };
-                
+
                 archive_remotes.push(format!("[[archive.remote]]\nborg = {{ borg-repo = \"{borg_repo}\"{ssh_key_path_line}{borg_passphrase_line} }}"));
             }
             _ => {
-                println!("\nConfiguring Borg archive #{} (recommended for long-term storage):", archive_remotes.len() + 1);
+                println!(
+                    "\nConfiguring Borg archive #{} (recommended for long-term storage):",
+                    archive_remotes.len() + 1
+                );
                 let (ssh_key_path, borg_repo, borg_passphrase) = prompt_for_borg_config()?;
-                
+
                 let ssh_key_path_line = if ssh_key_path.is_empty() {
                     "".to_string()
                 } else {
                     format!(", ssh-key-path = \"{ssh_key_path}\"")
                 };
-                
+
                 let borg_passphrase_line = if borg_passphrase.is_empty() {
                     "".to_string()
                 } else {
                     format!(", borg-passphrase = \"{borg_passphrase}\"")
                 };
-                
+
                 archive_remotes.push(format!("[[archive.remote]]\nborg = {{ borg-repo = \"{borg_repo}\"{ssh_key_path_line}{borg_passphrase_line} }}"));
             }
         }
@@ -285,7 +291,6 @@ skip-missing = {skip_missing}
 [archive]
 archive-interval = "{archive_interval}"
 retention-period = "{archive_retention_period}"
-file-structure-format = "{archive_file_structure_format}"
 purge-interval = "{archive_purge_interval}"
 
 {archive_remotes_str}

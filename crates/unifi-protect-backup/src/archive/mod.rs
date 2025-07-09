@@ -20,7 +20,6 @@ pub struct Config {
     pub archive_interval: Duration,
     #[serde(with = "humantime_serde")]
     pub retention_period: Duration,
-    pub file_structure_format: String,
     #[serde(with = "humantime_serde")]
     pub purge_interval: Duration,
     pub remote: Vec<RemoteArchiveConfig>,
