@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::{sync::Arc, time::Duration};
 
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -42,4 +42,23 @@ pub struct Config {
 pub enum RemoteBackupConfig {
     Local(local::Config),
     Rclone(rclone::Config),
+}
+
+pub fn backup_targets(config: &crate::config::Config) -> Vec<Arc<dyn Backup>> {
+    let mut targets = vec![];
+
+    for remote in &config.backup.remote {
+        targets.push(match remote {
+            RemoteBackupConfig::Local(remote) => Arc::new(local::LocalBackup {
+                backup_config: config.backup.clone(),
+                remote_config: remote.clone(),
+            }) as Arc<dyn Backup>,
+            RemoteBackupConfig::Rclone(remote) => Arc::new(rclone::RcloneBackup {
+                backup_config: config.backup.clone(),
+                remote_config: remote.clone(),
+            }) as Arc<dyn Backup>,
+        });
+    }
+
+    targets
 }

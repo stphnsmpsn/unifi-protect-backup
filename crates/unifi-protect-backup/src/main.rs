@@ -40,6 +40,7 @@ async fn main() -> Result<()> {
     let context = Arc::new(Context::new(config.clone()).await?);
     let mut unifi_event_listener = task::UnifiEventListener::new(context.clone());
     let mut db_poller = task::BackupDbPoller::new(context.clone(), config.backup.clone());
+    let mut archiver = task::Archiver::new(context.clone(), config.archive.clone());
 
     tokio::select! {
         res = unifi_event_listener.run() => {
@@ -47,6 +48,9 @@ async fn main() -> Result<()> {
         }
         res = db_poller.run() => {
             warn!("DB Poller stopped: {:?}", res);
+        }
+        res = archiver.run() => {
+            warn!("Archiver stopped: {:?}", res);
         }
     }
 

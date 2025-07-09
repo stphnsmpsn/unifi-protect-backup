@@ -13,9 +13,6 @@ const SECONDS_PER_DAY: u64 = 24 * 60 * 60; // 86400
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all(deserialize = "kebab-case"))]
 pub struct Config {
-    pub rsync_host: String,
-    pub rsync_user: String,
-    pub rsync_path: String,
     pub ssh_key_path: Option<PathBuf>,
     pub borg_repo: String,
     pub borg_passphrase: Option<String>,
@@ -54,8 +51,7 @@ impl Archive for BorgBackup {
             .arg("--show-rc")
             .arg("--compression=lz4")
             .arg(&archive_name)
-            .arg("");
-        // .arg(temp_path); // todo(steve.sampson): implement
+            .arg("./.data");
 
         if let Some(ref passphrase) = self.remote_config.borg_passphrase {
             cmd.env("BORG_PASSPHRASE", passphrase);

@@ -160,8 +160,7 @@ async fn prompt_for_config() -> Result<String> {
 
     // Prompt for Borg configuration
     println!("\nConfiguring Borg archive (recommended for long-term storage):");
-    let (rsync_host, rsync_user, rsync_path, ssh_key_path, borg_repo, borg_passphrase) =
-        prompt_for_borg_config()?;
+    let (ssh_key_path, borg_repo, borg_passphrase) = prompt_for_borg_config()?;
 
     let database_path = prompt_with_default(
         "Database path",
@@ -215,9 +214,9 @@ async fn prompt_for_config() -> Result<String> {
         match target.trim() {
             "1" => {
                 let local_path = prompt_with_default("Local backup path", "./data")?;
-                backup_remotes.push(format!("{{ Local = {{ path-buf = \"{local_path}\" }} }}"));
+                backup_remotes.push(format!("{{ local = {{ path-buf = \"{local_path}\" }} }}"));
             }
-            "2" => backup_remotes.push("{ Rclone = {} }".to_string()),
+            "2" => backup_remotes.push("{ rclone = {} }".to_string()),
             _ => {
                 let local_path = prompt_with_default("Local backup path", "./data")?;
                 backup_remotes.push(format!("{{ Local = {{ path-buf = \"{local_path}\" }} }}"));
@@ -253,8 +252,7 @@ archive-interval = "{archive_interval}"
 retention-period = "{archive_retention_period}"
 file-structure-format = "{archive_file_structure_format}"
 purge-interval = "{archive_purge_interval}"
-
-remote = [{{ Borg = {{ rsync-host = "{rsync_host}", rsync-user = "{rsync_user}", rsync-path = "{rsync_path}", {ssh_key_path_line}, borg-repo = "{borg_repo}", {borg_passphrase_line} }} }}]
+remote = [{{ borg = {{ {ssh_key_path_line}, borg-repo = "{borg_repo}", {borg_passphrase_line} }} }}]
 
 [database]
 path = "{database_path}"
@@ -264,24 +262,14 @@ path = "{database_path}"
     Ok(config)
 }
 
-fn prompt_for_borg_config() -> Result<(String, String, String, String, String, String)> {
+fn prompt_for_borg_config() -> Result<(String, String, String)> {
     println!("\nConfiguring Borg backup...");
 
-    let rsync_host = prompt_with_default("Rsync host", "rsync.net")?;
-    let rsync_user = prompt_with_default("Rsync user", "user")?;
-    let rsync_path = prompt_with_default("Rsync path", "unifi-protect")?;
     let ssh_key_path = prompt_with_default("SSH key path (optional)", "")?;
     let borg_repo = prompt_with_default("Borg repository", "user@rsync.net:unifi-protect")?;
     let borg_passphrase = prompt_with_default("Borg passphrase (optional)", "")?;
 
-    Ok((
-        rsync_host,
-        rsync_user,
-        rsync_path,
-        ssh_key_path,
-        borg_repo,
-        borg_passphrase,
-    ))
+    Ok((ssh_key_path, borg_repo, borg_passphrase))
 }
 
 fn prompt_with_default(prompt: &str, default: &str) -> Result<String> {

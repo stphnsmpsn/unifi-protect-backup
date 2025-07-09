@@ -2,6 +2,7 @@ target/
 .secrets/
 .idea/
 .claude
+.data/
 config.toml
 PROJECT_STATUS.md
 CLAUDE.md

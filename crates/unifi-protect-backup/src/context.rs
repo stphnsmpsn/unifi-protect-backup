@@ -6,8 +6,8 @@ use unifi_protect_client::{ProtectClient, models::Bootstrap};
 use unifi_protect_data::Database;
 
 use crate::{
-    backup,
-    backup::{Backup, RemoteBackupConfig},
+    archive::{Archive, archive_targets},
+    backup::{Backup, backup_targets},
     config::Config,
 };
 
@@ -15,6 +15,7 @@ pub struct Context {
     pub protect_client: ProtectClient,
     pub protect_bootstrap: Bootstrap,
     pub backup_targets: Vec<Arc<dyn Backup>>, // dyn b/c we don't know the enabled backup targets until runtime (config-driven)
+    pub archive_targets: Vec<Arc<dyn Archive>>, // dyn b/c we don't know the enabled archive targets until runtime (config-driven)
     pub database: Database,
 }
 
@@ -29,27 +30,9 @@ impl Context {
         Ok(Self {
             protect_client,
             protect_bootstrap,
+            archive_targets: archive_targets(&config),
             backup_targets: backup_targets(&config),
             database: Database::new(config.database.path.as_path()).await?,
         })
     }
-}
-
-fn backup_targets(config: &Config) -> Vec<Arc<dyn Backup>> {
-    let mut targets = vec![];
-
-    for remote in &config.backup.remote {
-        targets.push(match remote {
-            RemoteBackupConfig::Local(remote) => Arc::new(backup::local::LocalBackup {
-                backup_config: config.backup.clone(),
-                remote_config: remote.clone(),
-            }) as Arc<dyn Backup>,
-            RemoteBackupConfig::Rclone(remote) => Arc::new(backup::rclone::RcloneBackup {
-                backup_config: config.backup.clone(),
-                remote_config: remote.clone(),
-            }) as Arc<dyn Backup>,
-        });
-    }
-
-    targets
 }
