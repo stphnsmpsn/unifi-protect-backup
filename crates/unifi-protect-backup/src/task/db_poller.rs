@@ -77,12 +77,13 @@ async fn process_event(context: Arc<Context>, event: unifi_protect_data::Event) 
     for target in context.backup_targets.as_slice() {
         // 2. Run backup operations using configured backup targets
         let _ = target.backup(&protect_event, video_data.as_slice()).await?;
-        // 3. Update database to mark event as backed up
-        context
-            .database
-            .mark_event_backed_up(event_id.as_str())
-            .await?
     }
+
+    // 3. Update database to mark event as backed up
+    context
+        .database
+        .mark_event_backed_up(event_id.as_str())
+        .await?;
 
     Ok(())
 }
