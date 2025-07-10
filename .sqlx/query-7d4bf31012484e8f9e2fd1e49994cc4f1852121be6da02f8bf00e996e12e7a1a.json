@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\n            SELECT id as \"id!: String\", \n                   event_type as \"event_type!: _\",\n                   camera_id as \"camera_id!: _\",\n                   start_time as \"start_time!: _\",\n                   end_time as \"end_time?: _\",\n                   backed_up as \"backed_up!: _\"\n            FROM events WHERE backed_up = FALSE\n            ",
+  "query": "\n            SELECT id as \"id!: String\", \n                   event_type as \"event_type!: _\",\n                   camera_id as \"camera_id!: _\",\n                   start_time as \"start_time!: _\",\n                   end_time as \"end_time?: _\",\n                   backed_up as \"backed_up!: _\"\n            FROM events WHERE backed_up = FALSE AND end_time IS NOT NULL\n            ",
   "describe": {
     "columns": [
       {
@@ -46,5 +46,5 @@
       false
     ]
   },
-  "hash": "80a1fb075963859c84d3dc18a7a5de0772d80a064b8e96420a4cc533fee05cd8"
+  "hash": "7d4bf31012484e8f9e2fd1e49994cc4f1852121be6da02f8bf00e996e12e7a1a"
 }
