@@ -19,7 +19,7 @@ impl BackupDbPoller {
     }
 
     pub async fn run(&mut self) -> Result<()> {
-        info!("Starting database poller for poll for events pending backup");
+        info!("Starting DB Poller");
 
         let mut interval = interval(self.config.poll_interval);
 

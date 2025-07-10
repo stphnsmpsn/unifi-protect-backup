@@ -17,6 +17,8 @@ impl UnifiEventListener {
     }
 
     pub async fn run(&mut self) -> Result<()> {
+        info!("Starting UniFi Protect Event Listener");
+
         let mut rx = self.context.protect_client.connect_websocket().await?;
         loop {
             let Some(ws_message) = rx.recv().await else {
