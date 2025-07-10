@@ -1,5 +1,6 @@
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
+use std::process::Stdio;
 use tempfile::NamedTempFile;
 use tokio::{io::AsyncWriteExt, process::Command};
 use tracing::{debug, info, trace};
@@ -12,6 +13,8 @@ use crate::{Error, Result, backup, backup::Backup};
 pub struct Config {
     pub remote: String,
     pub base_path: String,
+    #[serde(default)]
+    pub stream_upload: bool,
 }
 
 pub struct RcloneBackup {
@@ -33,6 +36,106 @@ impl Backup for RcloneBackup {
     async fn backup(&self, event: &ProtectEvent, video_data: &[u8]) -> Result<String> {
         let filename = event.format_filename(&self.backup_config.file_structure_format);
 
+        let dest_path = format!(
+            "{}:/{}/{}",
+            self.remote_config.remote,
+            self.remote_config
+                .base_path
+                .trim_start_matches('/')
+                .trim_end_matches('/'),
+            filename
+        );
+
+        if self.remote_config.stream_upload {
+            // Use rclone rcat for streaming upload
+            self.stream_upload(video_data, &dest_path, &filename).await
+        } else {
+            // Use traditional temp file upload
+            self.temp_file_upload(video_data, &dest_path, &filename)
+                .await
+        }
+    }
+
+    async fn prune(&self) -> Result<()> {
+        todo!("Not implemented")
+    }
+}
+
+impl RcloneBackup {
+    async fn stream_upload(
+        &self,
+        video_data: &[u8],
+        dest_path: &str,
+        filename: &str,
+    ) -> Result<String> {
+        debug!(
+            "Streaming upload {} bytes to {}",
+            video_data.len(),
+            dest_path
+        );
+
+        // Execute rclone rcat command with size parameter
+        let mut child = Command::new("rclone")
+            .arg("rcat")
+            .arg(dest_path)
+            .arg("--size")
+            .arg(video_data.len().to_string())
+            .arg("--progress")
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .map_err(|e| Error::Backup(format!("Failed to spawn rclone rcat: {e}")))?;
+
+        // Take stdin handle (this moves it out of the child)
+        {
+            let mut stdin = child
+                .stdin
+                .take()
+                .ok_or_else(|| Error::Backup("Failed to get stdin handle".to_string()))?;
+
+            // Write video data to stdin
+            stdin
+                .write_all(video_data)
+                .await
+                .map_err(|e| Error::Backup(format!("Failed to write data to rclone stdin: {e}")))?;
+
+            // Close stdin to signal end of data (stdin is dropped automatically here)
+        }
+
+        // Wait for command to complete
+        let output = child
+            .wait_with_output()
+            .await
+            .map_err(|e| Error::Backup(format!("Failed to wait for rclone rcat: {e}")))?;
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return Err(Error::Backup(format!(
+                "Rclone stream upload failed: {stderr}"
+            )));
+        }
+
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        trace!("Rclone rcat output: {}", stdout);
+
+        info!(
+            filename = filename,
+            remote = self.remote_config.remote,
+            dest_path = dest_path,
+            size_bytes = video_data.len(),
+            "Successfully streamed event to rclone remote"
+        );
+
+        Ok(filename.to_string())
+    }
+
+    async fn temp_file_upload(
+        &self,
+        video_data: &[u8],
+        dest_path: &str,
+        filename: &str,
+    ) -> Result<String> {
         let temp_file = NamedTempFile::new()
             .map_err(|e| Error::Backup(format!("Failed to create temp file: {e}")))?;
         let temp_path = temp_file.path();
@@ -49,23 +152,13 @@ impl Backup for RcloneBackup {
             .await
             .map_err(|e| Error::Backup(format!("Failed to flush temp file: {e}")))?;
 
-        let dest_path = format!(
-            "{}:/{}/{}",
-            self.remote_config.remote,
-            self.remote_config
-                .base_path
-                .trim_start_matches('/')
-                .trim_end_matches('/'),
-            filename
-        );
-
         debug!("Uploading {} to {}", temp_path.display(), dest_path);
 
         // Execute rclone copyto command (copies file to specific destination name)
         let output = Command::new("rclone")
             .arg("copyto")
             .arg(temp_path)
-            .arg(&dest_path)
+            .arg(dest_path)
             .arg("--progress")
             .output()
             .await
@@ -86,10 +179,6 @@ impl Backup for RcloneBackup {
             "Successfully backed up event to rclone remote"
         );
 
-        Ok(filename)
-    }
-
-    async fn prune(&self) -> Result<()> {
-        todo!("Not implemented")
+        Ok(filename.to_string())
     }
 }

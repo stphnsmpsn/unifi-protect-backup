@@ -208,7 +208,16 @@ async fn prompt_for_config() -> Result<String> {
                     "[[backup.remote]]\nlocal = {{ path-buf = \"{local_path}\" }}"
                 ));
             }
-            "2" | "rclone" => backup_remotes.push("[[backup.remote]]\nrclone = {}".to_string()),
+            "2" | "rclone" => {
+                println!(
+                    "\nConfiguring Rclone backup #{} (cloud storage):",
+                    backup_remotes.len() + 1
+                );
+                let (remote, base_path, stream_upload) = prompt_for_rclone_config()?;
+                backup_remotes.push(format!(
+                    "[[backup.remote]]\nrclone = {{ remote = \"{remote}\", base-path = \"{base_path}\", stream-upload = {stream_upload} }}"
+                ));
+            }
             _ => {
                 let local_path = prompt_with_default("Local backup path", "./data")?;
                 backup_remotes.push(format!(
@@ -315,6 +324,16 @@ fn prompt_for_borg_config() -> Result<(String, String, String)> {
     let borg_passphrase = prompt_with_default("Borg passphrase (optional)", "")?;
 
     Ok((ssh_key_path, borg_repo, borg_passphrase))
+}
+
+fn prompt_for_rclone_config() -> Result<(String, String, bool)> {
+    let remote = prompt_with_default("Rclone remote name", "s3")?;
+    let base_path = prompt_with_default("Base path in remote", "unifi-protect")?;
+    let stream_upload_str = prompt_with_default("Enable streaming upload (true/false)", "true")?;
+
+    let stream_upload = stream_upload_str.to_lowercase() == "true";
+
+    Ok((remote, base_path, stream_upload))
 }
 
 fn prompt_with_default(prompt: &str, default: &str) -> Result<String> {
