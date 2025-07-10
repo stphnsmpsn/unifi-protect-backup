@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use tokio::time::interval;
-use tracing::info;
+use tracing::{info, warn};
 
 use crate::{Result, context::Context};
 
@@ -23,7 +23,9 @@ impl Archiver {
         loop {
             interval.tick().await;
             for archiver in self.context.archive_targets.as_slice() {
-                archiver.archive().await?;
+                let _ = archiver.archive().await.inspect_err(|err| {
+                    warn!(err = ?err, "Failed to create archive");
+                });
             }
         }
     }

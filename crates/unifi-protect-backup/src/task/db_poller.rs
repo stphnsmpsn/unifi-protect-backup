@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use futures_util::future::join_all;
 use tokio::time::interval;
-use tracing::{debug, error, info};
+use tracing::{debug, error, info, warn};
 
 use crate::{Result, context::Context, convert::protect_event_from_database_event};
 
@@ -76,7 +76,12 @@ async fn process_event(context: Arc<Context>, event: unifi_protect_data::Event) 
     // todo(steve.sampson): parallelize backups to different targets
     for target in context.backup_targets.as_slice() {
         // 2. Run backup operations using configured backup targets
-        let _ = target.backup(&protect_event, video_data.as_slice()).await?;
+        let _ = target
+            .backup(&protect_event, video_data.as_slice())
+            .await
+            .inspect_err(|err| {
+                warn!(err= ?err, "Failed to create backup");
+            });
     }
 
     // 3. Update database to mark event as backed up

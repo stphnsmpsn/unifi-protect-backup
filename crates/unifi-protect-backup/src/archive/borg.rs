@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use tokio::process::Command;
-use tracing::{debug, info};
+use tracing::{debug, info, trace};
 
 use crate::{Error, Result, archive, archive::Archive};
 
@@ -63,6 +63,8 @@ impl Archive for BorgBackup {
             cmd.env("BORG_RSH", ssh_cmd);
         }
 
+        debug!("Creating Archive: {archive_name}");
+
         let output = cmd
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
@@ -75,13 +77,14 @@ impl Archive for BorgBackup {
         }
 
         let stdout = String::from_utf8_lossy(&output.stdout);
-        debug!("Borg backup output: {}", stdout);
+        trace!("Borg backup output: {}", stdout);
 
         info!(
             archive_name = archive_name,
             "Successfully backed up archive",
         );
-        Ok("".to_string())
+
+        Ok(archive_name)
     }
 
     async fn prune(&self) -> Result<()> {
