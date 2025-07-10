@@ -51,7 +51,7 @@ impl Archive for BorgBackup {
             .arg("--show-rc")
             .arg("--compression=lz4")
             .arg(&archive_name)
-            .arg("./.data");    // todo(steve.sampson): don't hard code this path!
+            .arg("./.data"); // todo(steve.sampson): don't hard code this path!
 
         if let Some(ref passphrase) = self.remote_config.borg_passphrase {
             cmd.env("BORG_PASSPHRASE", passphrase);

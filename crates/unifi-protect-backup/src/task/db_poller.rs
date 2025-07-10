@@ -4,7 +4,7 @@ use futures_util::future::join_all;
 use tokio::time::interval;
 use tracing::{debug, error, info, warn};
 
-use crate::{Result, context::Context, convert::protect_event_from_database_event};
+use crate::{Error, Result, context::Context, convert::protect_event_from_database_event};
 
 const BATCH_SIZE: usize = 10;
 
@@ -60,15 +60,17 @@ impl BackupDbPoller {
 async fn process_event(context: Arc<Context>, event: unifi_protect_data::Event) -> Result<()> {
     info!("Processing event: {}", event.id);
 
+    let Some(end_time) = event.end_time else {
+        return Err(Error::Backup(
+            "Can not back up ongoing event...".to_string(),
+        ));
+    };
+
     // 1. Download video data from UniFi Protect
     debug!(event_id = event.id, "Downloading Motion Event");
     let video_data = context
         .protect_client
-        .download_event_video(
-            event.camera_id.as_str(),
-            event.start_time,
-            event.end_time.unwrap(),
-        )
+        .download_event_video(event.camera_id.as_str(), event.start_time, end_time)
         .await?;
 
     let event_id = event.id.clone();

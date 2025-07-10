@@ -124,7 +124,7 @@ impl Database {
                    start_time as "start_time!: _",
                    end_time as "end_time?: _",
                    backed_up as "backed_up!: _"
-            FROM events WHERE backed_up = FALSE
+            FROM events WHERE backed_up = FALSE AND end_time IS NOT NULL
             "#
         )
         .fetch_all(&self.pool)
