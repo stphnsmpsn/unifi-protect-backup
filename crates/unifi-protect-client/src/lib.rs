@@ -309,3 +309,33 @@ fn extract_auth_cookie(cookie_str: &str) -> Option<String> {
     }
     None
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_deserialize_bootstrap_data() {
+        let data = r#"{
+            "cameras": [
+                {
+                  "id": "1",
+                  "name": "Test Camera",
+                  "mac": "",
+                  "model": "",
+                  "isConnected": true
+                }
+            ],
+            "nvr": {
+               "id": "",
+               "name": "",
+               "version": "",
+               "timezone": "UTC"
+            }
+        }"#;
+
+        let bootstrap_raw = serde_json::from_str::<BootstrapRawResponse>(data);
+        assert!(bootstrap_raw.is_ok());
+        let _ = Bootstrap::from(bootstrap_raw.expect("infallible"));
+    }
+}
