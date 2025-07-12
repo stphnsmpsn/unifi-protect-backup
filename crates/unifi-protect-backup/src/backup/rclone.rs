@@ -15,6 +15,8 @@ pub struct Config {
     pub base_path: String,
     #[serde(default)]
     pub stream_upload: bool,
+    #[serde(default)]
+    pub chunk_stream_uploads: bool,
 }
 
 pub struct RcloneBackup {
@@ -47,8 +49,13 @@ impl Backup for RcloneBackup {
         );
 
         if self.remote_config.stream_upload {
-            // Use rclone rcat for streaming upload
-            self.stream_upload(video_data, &dest_path, &filename).await
+            if self.remote_config.chunk_stream_uploads {
+                // Use chunked streaming upload
+                self.chunked_stream_upload(video_data, &dest_path, &filename).await
+            } else {
+                // Use single write streaming upload
+                self.single_stream_upload(video_data, &dest_path, &filename).await
+            }
         } else {
             // Use traditional temp file upload
             self.temp_file_upload(video_data, &dest_path, &filename)
@@ -62,14 +69,88 @@ impl Backup for RcloneBackup {
 }
 
 impl RcloneBackup {
-    async fn stream_upload(
+    async fn single_stream_upload(
         &self,
         video_data: &[u8],
         dest_path: &str,
         filename: &str,
     ) -> Result<String> {
         debug!(
-            "Streaming upload {} bytes to {}",
+            "Single stream upload {} bytes to {}",
+            video_data.len(),
+            dest_path
+        );
+
+        // Execute rclone rcat command with size parameter
+        let mut child = Command::new("rclone")
+            .arg("rcat")
+            .arg(dest_path)
+            .arg("--size")
+            .arg(video_data.len().to_string())
+            .arg("--progress")
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .map_err(|e| Error::Backup(format!("Failed to spawn rclone rcat: {e}")))?;
+
+        // Take stdin handle and write all data at once
+        {
+            let mut stdin = child
+                .stdin
+                .take()
+                .ok_or_else(|| Error::Backup("Failed to get stdin handle".to_string()))?;
+
+            // Write all data at once
+            stdin
+                .write_all(video_data)
+                .await
+                .map_err(|e| Error::Backup(format!("Failed to write data to rclone stdin: {e}")))?;
+
+            // Ensure all data is flushed
+            stdin
+                .flush()
+                .await
+                .map_err(|e| Error::Backup(format!("Failed to flush stdin: {e}")))?;
+
+            // Close stdin to signal end of data (stdin is dropped automatically here)
+        }
+
+        // Wait for command to complete
+        let output = child
+            .wait_with_output()
+            .await
+            .map_err(|e| Error::Backup(format!("Failed to wait for rclone rcat: {e}")))?;
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return Err(Error::Backup(format!(
+                "Rclone single stream upload failed: {stderr}"
+            )));
+        }
+
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        trace!("Rclone rcat output: {}", stdout);
+
+        info!(
+            filename = filename,
+            remote = self.remote_config.remote,
+            dest_path = dest_path,
+            size_bytes = video_data.len(),
+            "Successfully single streamed event to rclone remote"
+        );
+
+        Ok(filename.to_string())
+    }
+
+    async fn chunked_stream_upload(
+        &self,
+        video_data: &[u8],
+        dest_path: &str,
+        filename: &str,
+    ) -> Result<String> {
+        debug!(
+            "Chunked stream upload {} bytes to {}",
             video_data.len(),
             dest_path
         );
@@ -94,11 +175,20 @@ impl RcloneBackup {
                 .take()
                 .ok_or_else(|| Error::Backup("Failed to get stdin handle".to_string()))?;
 
-            // Write video data to stdin
+            // Stream data in chunks to avoid memory pressure
+            const CHUNK_SIZE: usize = 100 * 1024 * 1024; // 100MiB chunks
+            for chunk in video_data.chunks(CHUNK_SIZE) {
+                stdin
+                    .write_all(chunk)
+                    .await
+                    .map_err(|e| Error::Backup(format!("Failed to write chunk to rclone stdin: {e}")))?;
+            }
+
+            // Ensure all data is flushed
             stdin
-                .write_all(video_data)
+                .flush()
                 .await
-                .map_err(|e| Error::Backup(format!("Failed to write data to rclone stdin: {e}")))?;
+                .map_err(|e| Error::Backup(format!("Failed to flush stdin: {e}")))?;
 
             // Close stdin to signal end of data (stdin is dropped automatically here)
         }
@@ -112,7 +202,7 @@ impl RcloneBackup {
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
             return Err(Error::Backup(format!(
-                "Rclone stream upload failed: {stderr}"
+                "Rclone chunked stream upload failed: {stderr}"
             )));
         }
 
@@ -124,7 +214,7 @@ impl RcloneBackup {
             remote = self.remote_config.remote,
             dest_path = dest_path,
             size_bytes = video_data.len(),
-            "Successfully streamed event to rclone remote"
+            "Successfully chunked streamed event to rclone remote"
         );
 
         Ok(filename.to_string())

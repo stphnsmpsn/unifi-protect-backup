@@ -8,6 +8,7 @@ license = "MIT"
 repository = "https://gitlab.stephensampson.dev/homelab/unifi-protect-backup"
 
 [dependencies]
+arc-swap = "1.7.1"
 chrono = { workspace = true, features = ["serde"] }
 futures-util.workspace = true
 reqwest = { workspace = true, features = ["json", "stream"] }

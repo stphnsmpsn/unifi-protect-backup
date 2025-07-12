@@ -76,6 +76,7 @@ async fn process_event(context: Arc<Context>, event: unifi_protect_data::Event) 
     let event_id = event.id.clone();
     let protect_event = protect_event_from_database_event(event, &context.protect_bootstrap);
     // todo(steve.sampson): parallelize backups to different targets
+    let mut error = false;
     for target in context.backup_targets.as_slice() {
         // 2. Run backup operations using configured backup targets
         let _ = target
@@ -83,14 +84,17 @@ async fn process_event(context: Arc<Context>, event: unifi_protect_data::Event) 
             .await
             .inspect_err(|err| {
                 warn!(err= ?err, "Failed to create backup");
+                error = true;
             });
     }
 
-    // 3. Update database to mark event as backed up
-    context
-        .database
-        .mark_event_backed_up(event_id.as_str())
-        .await?;
+    if !error {
+        // 3. Update database to mark event as backed up (assuming no error backing up to any targets)
+        context
+            .database
+            .mark_event_backed_up(event_id.as_str())
+            .await?;
+    }
 
     Ok(())
 }

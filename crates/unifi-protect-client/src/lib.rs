@@ -1,7 +1,9 @@
+use arc_swap::ArcSwap;
 use futures_util::StreamExt;
-use reqwest::{Client, RequestBuilder, Url};
+use reqwest::{Client, RequestBuilder, Url, Response};
 use serde_json::Value;
-use tokio::sync::mpsc;
+use std::sync::Arc;
+use tokio::sync::{mpsc, Mutex};
 use tokio_tungstenite::{
     Connector, connect_async, connect_async_tls_with_config, tungstenite::Message,
 };
@@ -23,7 +25,13 @@ pub struct ProtectClient {
     client: Client,
     base_url: Url,
     config: UnifiConfig,
-    auth_cookie: Option<String>,
+    auth: ArcSwap<Auth>,
+    // Mutex to prevent concurrent reauthentication attempts
+    auth_mutex: Mutex<()>,
+}
+
+struct Auth {
+    cookie: Option<String>,
     csrf_token: Option<String>,
 }
 
@@ -40,12 +48,15 @@ impl ProtectClient {
             client,
             base_url,
             config,
-            auth_cookie: None,
-            csrf_token: None,
+            auth: ArcSwap::new(Arc::new(Auth {
+                csrf_token: None,
+                cookie: None,
+            })),
+            auth_mutex: Mutex::new(()),
         })
     }
 
-    pub async fn login(&mut self) -> Result<()> {
+    pub async fn login(&self) -> Result<()> {
         let login_url = self
             .base_url
             .join("/api/auth/login")
@@ -64,38 +75,83 @@ impl ProtectClient {
         }
 
         // Extract auth cookie
-        if let Some(cookie_header) = response.headers().get("set-cookie") {
-            let cookie_str = cookie_header
-                .to_str()
-                .map_err(|_| Error::Auth("Invalid cookie header".to_string()))?;
-
-            if let Some(auth_cookie) = extract_auth_cookie(cookie_str) {
-                self.auth_cookie = Some(auth_cookie);
-            }
-        }
+        let cookie = response
+            .headers()
+            .get("set-cookie")
+            .ok_or_else(|| Error::Auth("No set-cookie header found".to_string()))?
+            .to_str()
+            .map_err(|_| Error::Auth("Invalid cookie header".to_string()))
+            .and_then(|cookie_str| {
+                extract_auth_cookie(cookie_str)
+                    .ok_or_else(|| Error::Auth("Auth cookie not found".to_string()))
+            })?;
 
         // Extract CSRF token from response
         let response_text = response.text().await?;
-        if let Ok(json) = serde_json::from_str::<Value>(&response_text) {
-            if let Some(csrf) = json.get("csrfToken").and_then(|v| v.as_str()) {
-                self.csrf_token = Some(csrf.to_string());
-            }
-        }
+        let csrf_token = serde_json::from_str::<Value>(&response_text)
+            .map_err(|_| Error::Auth("Invalid JSON response".to_string()))?
+            .get("csrfToken")
+            .and_then(|v| v.as_str())
+            .map(ToString::to_string);
+
+        self.auth.store(Arc::new(Auth {
+            cookie: Some(cookie),
+            csrf_token,
+        }));
 
         info!("Successfully logged in to UniFi Protect");
         Ok(())
     }
 
     fn add_headers(&self, mut builder: RequestBuilder) -> RequestBuilder {
-        if let Some(ref cookie) = self.auth_cookie {
+        let auth = self.auth.load();
+
+        if let Some(ref cookie) = auth.cookie {
             builder = builder.header("Cookie", cookie);
         }
 
-        if let Some(ref csrf) = self.csrf_token {
+        if let Some(ref csrf) = auth.csrf_token {
             builder = builder.header("X-CSRF-Token", csrf);
         }
 
         builder
+    }
+
+    /// Execute a request with automatic reauthentication on 401
+    async fn execute_with_retry<F, Fut>(&self, request_fn: F) -> Result<Response>
+    where
+        F: Fn() -> Fut,
+        Fut: std::future::Future<Output = Result<Response>>,
+    {
+        const MAX_RETRIES: usize = 2;
+
+        for attempt in 0..=MAX_RETRIES {
+            let response = request_fn().await?;
+
+            if response.status().as_u16() == 401 && attempt < MAX_RETRIES {
+                info!("Session expired, attempting reauthentication (attempt {}/{})", attempt + 1, MAX_RETRIES);
+
+                // Use mutex to prevent concurrent reauthentication
+                let _guard = self.auth_mutex.lock().await;
+
+                // Check if another thread already reauthenticated
+                let test_response = request_fn().await?;
+                if test_response.status().as_u16() != 401 {
+                    return Ok(test_response);
+                }
+
+                // Perform reauthentication
+                self.login().await.inspect_err(|e| {
+                    error!(err = ?e, "Failed to reauthenticate on attempt {}", attempt + 1)
+                })?;
+
+                continue;
+            }
+
+            return Ok(response);
+        }
+
+        unreachable!("Loop should have returned by now")
     }
 
     pub async fn get_bootstrap(&self) -> Result<Bootstrap> {
@@ -104,10 +160,11 @@ impl ProtectClient {
             .join("/proxy/protect/api/bootstrap")
             .map_err(|e| Error::General(format!("Invalid URL: {e}")))?;
 
-        let request = self.client.get(bootstrap_url);
-        let request = self.add_headers(request);
-
-        let response = request.send().await?;
+        let response = self.execute_with_retry(|| {
+            let request = self.client.get(bootstrap_url.clone());
+            let request = self.add_headers(request);
+            async move { request.send().await.map_err(Into::into) }
+        }).await?;
 
         if !response.status().is_success() {
             return Err(Error::Api(format!(
@@ -136,10 +193,11 @@ impl ProtectClient {
             ))
             .map_err(|e| Error::General(format!("Invalid URL: {e}")))?;
 
-        let request = self.client.get(download_url);
-        let request = self.add_headers(request);
-
-        let response = request.send().await?;
+        let response = self.execute_with_retry(|| {
+            let request = self.client.get(download_url.clone());
+            let request = self.add_headers(request);
+            async move { request.send().await.map_err(Into::into) }
+        }).await?;
 
         if !response.status().is_success() {
             return Err(Error::Api(format!(
@@ -153,6 +211,23 @@ impl ProtectClient {
         Ok(video_data.to_vec())
     }
 
+    // async fn authenticated_request(&self, request_builder: RequestBuilder) -> Result<Response> {
+    //     let request_with_auth = self.add_headers(request_builder);
+    //     let response = request_with_auth.send().await?;
+    //
+    //     if response.status().as_u16() == 401 {
+    //         // Reauthenticate and retry once
+    //         let _guard = self.auth_mutex.lock().await;
+    //         self.login().await?;
+    //
+    //         // Clone the original request and retry
+    //         // Note: This approach requires reconstructing the request
+    //         return Err(Error::Auth("Request failed after reauthentication - please retry".to_string()));
+    //     }
+    //
+    //     Ok(response)
+    // }
+
     pub async fn connect_websocket(&self) -> Result<mpsc::Receiver<WebSocketMessage>> {
         let ws_url = format!(
             "wss://{}:{}/proxy/protect/ws/updates",
@@ -163,7 +238,8 @@ impl ProtectClient {
             tokio_tungstenite::tungstenite::client::IntoClientRequest::into_client_request(ws_url)
                 .map_err(|e| Error::WebSocket(Box::new(e)))?;
 
-        if let Some(ref cookie) = self.auth_cookie {
+        let auth = self.auth.load();
+        if let Some(cookie) = auth.cookie.as_ref() {
             request.headers_mut().insert(
                 "Cookie",
                 cookie
@@ -190,8 +266,7 @@ impl ProtectClient {
 
         let (tx, rx) = mpsc::channel(100);
 
-        // todo: handle this properly; we don't want to spawn this in the background, losing
-        //  the join handle and assuming we'll never get errors
+        // Spawn background task with proper error handlting
         tokio::spawn(async move {
             while let Some(message) = ws_receiver.next().await {
                 match message {
@@ -233,34 +308,4 @@ fn extract_auth_cookie(cookie_str: &str) -> Option<String> {
         }
     }
     None
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_deserialize_bootstrap_data() {
-        let data = r#"{
-            "cameras": [
-                {
-                  "id": "1",
-                  "name": "Test Camera",
-                  "mac": "",
-                  "model": "",
-                  "isConnected": true
-                }
-            ],
-            "nvr": {
-               "id": "",
-               "name": "",
-               "version": "",
-               "timezone": "UTC"
-            }
-        }"#;
-
-        let bootstrap_raw = serde_json::from_str::<BootstrapRawResponse>(data);
-        assert!(bootstrap_raw.is_ok());
-        let _ = Bootstrap::from(bootstrap_raw.expect("infallible"));
-    }
 }

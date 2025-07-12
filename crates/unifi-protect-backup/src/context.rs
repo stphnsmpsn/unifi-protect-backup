@@ -21,7 +21,7 @@ pub struct Context {
 
 impl Context {
     pub async fn new(config: Config) -> crate::Result<Self> {
-        let mut protect_client = ProtectClient::new(config.unifi.clone())?;
+        let protect_client = ProtectClient::new(config.unifi.clone())?;
 
         protect_client.login().await?;
         let protect_bootstrap = protect_client.get_bootstrap().await?;
