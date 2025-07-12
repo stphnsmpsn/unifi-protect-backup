@@ -51,10 +51,12 @@ impl Backup for RcloneBackup {
         if self.remote_config.stream_upload {
             if self.remote_config.chunk_stream_uploads {
                 // Use chunked streaming upload
-                self.chunked_stream_upload(video_data, &dest_path, &filename).await
+                self.chunked_stream_upload(video_data, &dest_path, &filename)
+                    .await
             } else {
                 // Use single write streaming upload
-                self.single_stream_upload(video_data, &dest_path, &filename).await
+                self.single_stream_upload(video_data, &dest_path, &filename)
+                    .await
             }
         } else {
             // Use traditional temp file upload
@@ -178,10 +180,9 @@ impl RcloneBackup {
             // Stream data in chunks to avoid memory pressure
             const CHUNK_SIZE: usize = 100 * 1024 * 1024; // 100MiB chunks
             for chunk in video_data.chunks(CHUNK_SIZE) {
-                stdin
-                    .write_all(chunk)
-                    .await
-                    .map_err(|e| Error::Backup(format!("Failed to write chunk to rclone stdin: {e}")))?;
+                stdin.write_all(chunk).await.map_err(|e| {
+                    Error::Backup(format!("Failed to write chunk to rclone stdin: {e}"))
+                })?;
             }
 
             // Ensure all data is flushed

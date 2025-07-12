@@ -1,9 +1,9 @@
 use arc_swap::ArcSwap;
 use futures_util::StreamExt;
-use reqwest::{Client, RequestBuilder, Url, Response};
+use reqwest::{Client, RequestBuilder, Response, Url};
 use serde_json::Value;
 use std::sync::Arc;
-use tokio::sync::{mpsc, Mutex};
+use tokio::sync::{Mutex, mpsc};
 use tokio_tungstenite::{
     Connector, connect_async, connect_async_tls_with_config, tungstenite::Message,
 };
@@ -129,7 +129,11 @@ impl ProtectClient {
             let response = request_fn().await?;
 
             if response.status().as_u16() == 401 && attempt < MAX_RETRIES {
-                info!("Session expired, attempting reauthentication (attempt {}/{})", attempt + 1, MAX_RETRIES);
+                info!(
+                    "Session expired, attempting reauthentication (attempt {}/{})",
+                    attempt + 1,
+                    MAX_RETRIES
+                );
 
                 // Use mutex to prevent concurrent reauthentication
                 let _guard = self.auth_mutex.lock().await;
@@ -141,9 +145,9 @@ impl ProtectClient {
                 }
 
                 // Perform reauthentication
-                self.login().await.inspect_err(|e| {
-                    error!(err = ?e, "Failed to reauthenticate on attempt {}", attempt + 1)
-                })?;
+                self.login().await.inspect_err(
+                    |e| error!(err = ?e, "Failed to reauthenticate on attempt {}", attempt + 1),
+                )?;
 
                 continue;
             }
@@ -160,11 +164,13 @@ impl ProtectClient {
             .join("/proxy/protect/api/bootstrap")
             .map_err(|e| Error::General(format!("Invalid URL: {e}")))?;
 
-        let response = self.execute_with_retry(|| {
-            let request = self.client.get(bootstrap_url.clone());
-            let request = self.add_headers(request);
-            async move { request.send().await.map_err(Into::into) }
-        }).await?;
+        let response = self
+            .execute_with_retry(|| {
+                let request = self.client.get(bootstrap_url.clone());
+                let request = self.add_headers(request);
+                async move { request.send().await.map_err(Into::into) }
+            })
+            .await?;
 
         if !response.status().is_success() {
             return Err(Error::Api(format!(
@@ -193,11 +199,13 @@ impl ProtectClient {
             ))
             .map_err(|e| Error::General(format!("Invalid URL: {e}")))?;
 
-        let response = self.execute_with_retry(|| {
-            let request = self.client.get(download_url.clone());
-            let request = self.add_headers(request);
-            async move { request.send().await.map_err(Into::into) }
-        }).await?;
+        let response = self
+            .execute_with_retry(|| {
+                let request = self.client.get(download_url.clone());
+                let request = self.add_headers(request);
+                async move { request.send().await.map_err(Into::into) }
+            })
+            .await?;
 
         if !response.status().is_success() {
             return Err(Error::Api(format!(

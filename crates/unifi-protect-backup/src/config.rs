@@ -213,7 +213,8 @@ async fn prompt_for_config() -> Result<String> {
                     "\nConfiguring Rclone backup #{} (cloud storage):",
                     backup_remotes.len() + 1
                 );
-                let (remote, base_path, stream_upload, chunk_stream_uploads) = prompt_for_rclone_config()?;
+                let (remote, base_path, stream_upload, chunk_stream_uploads) =
+                    prompt_for_rclone_config()?;
                 backup_remotes.push(format!(
                     "[[backup.remote]]\nrclone = {{ remote = \"{remote}\", base-path = \"{base_path}\", stream-upload = {stream_upload}, chunk-stream-uploads = {chunk_stream_uploads} }}"
                 ));
@@ -330,7 +331,8 @@ fn prompt_for_rclone_config() -> Result<(String, String, bool, bool)> {
     let remote = prompt_with_default("Rclone remote name", "s3")?;
     let base_path = prompt_with_default("Base path in remote", "unifi-protect")?;
     let stream_upload_str = prompt_with_default("Enable streaming upload (true/false)", "true")?;
-    let chunk_stream_uploads_str = prompt_with_default("Use chunked streaming for large files (true/false)", "true")?;
+    let chunk_stream_uploads_str =
+        prompt_with_default("Use chunked streaming for large files (true/false)", "true")?;
 
     let stream_upload = stream_upload_str.to_lowercase() == "true";
     let chunk_stream_uploads = chunk_stream_uploads_str.to_lowercase() == "true";
