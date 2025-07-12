@@ -1,8 +1,9 @@
+use std::sync::Arc;
+
 use arc_swap::ArcSwap;
 use futures_util::StreamExt;
 use reqwest::{Client, RequestBuilder, Response, Url};
 use serde_json::Value;
-use std::sync::Arc;
 use tokio::sync::{Mutex, mpsc};
 use tokio_tungstenite::{
     Connector, connect_async, connect_async_tls_with_config, tungstenite::Message,
