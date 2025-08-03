@@ -21,4 +21,4 @@ RUN cargo build --release
 FROM debian:bookworm AS production
 WORKDIR /app
 COPY --from=build /app/target/release/unifi-protect-backup ./
-CMD [ "./system-exporter" ]
+CMD [ "./unifi-protect-backup" ]
