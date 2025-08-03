@@ -1,0 +1,12 @@
+.claude/
+.data/
+.sqlx/
+.secrets/
+docs/
+target/
+.gitlab-ci.yml
+CLAUDE.md
+LICENSE
+mkdocs.yml
+PROJECT_STATUS.md
+README.md

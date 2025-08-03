@@ -1,9 +1,8 @@
 # ---- Build Stage ----
-FROM rust:1.88.0-slim-bullseye as build
+FROM rust:1.88.0-slim-bookworm AS build
 ARG DEBIAN_FRONTEND=noninteractive
 RUN apt update && apt install -y \
     iputils-ping \
-    libssl-dev \
     libpq-dev \
     cmake \
     pkg-config \
@@ -20,6 +19,7 @@ RUN cargo build --release
 
 ## ---- Production Stage ----
 FROM debian:bookworm AS production
+RUN apt update && apt install -y libssl-dev
 WORKDIR /app
 COPY --from=build /app/target/release/unifi-protect-backup ./
 CMD [ "./unifi-protect-backup" ]
