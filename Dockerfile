@@ -3,6 +3,7 @@ FROM rust:1.88.0-slim-bullseye as build
 ARG DEBIAN_FRONTEND=noninteractive
 RUN apt update && apt install -y \
     iputils-ping \
+    libssl-dev \
     libpq-dev \
     cmake \
     pkg-config \
