@@ -130,12 +130,6 @@ impl ProtectClient {
             let response = request_fn().await?;
 
             if response.status().as_u16() == 401 && attempt < MAX_RETRIES {
-                info!(
-                    "Session expired, attempting reauthentication (attempt {}/{})",
-                    attempt + 1,
-                    MAX_RETRIES
-                );
-
                 // Use mutex to prevent concurrent reauthentication
                 let _guard = self.auth_mutex.lock().await;
 
@@ -145,10 +139,21 @@ impl ProtectClient {
                     return Ok(test_response);
                 }
 
+                info!(
+                    attempt = attempt,
+                    max_retries = MAX_RETRIES,
+                    "Session expired, attempting re-authentication",
+                );
+
                 // Perform reauthentication
-                self.login().await.inspect_err(
-                    |e| error!(err = ?e, "Failed to reauthenticate on attempt {}", attempt + 1),
-                )?;
+                self.login().await.inspect_err(|e| {
+                    error!(
+                        err = ?e,
+                        attempt = attempt,
+                        max_retries = MAX_RETRIES,
+                        "Failed to re-authenticate"
+                    )
+                })?;
 
                 continue;
             }

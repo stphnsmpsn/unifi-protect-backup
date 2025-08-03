@@ -3,14 +3,13 @@ use std::{sync::Arc, time::Duration};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
-use crate::Result;
+use crate::{Result, task::Prune};
 
 pub mod borg;
 
 #[async_trait]
-pub trait Archive: Send + Sync {
+pub trait Archive: Prune + Send + Sync {
     async fn archive(&self) -> Result<String>;
-    async fn prune(&self) -> Result<()>;
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

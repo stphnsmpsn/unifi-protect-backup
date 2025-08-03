@@ -5,15 +5,14 @@ use serde::{Deserialize, Serialize};
 
 use unifi_protect_client::events::ProtectEvent;
 
-use crate::Result;
+use crate::{Result, task::Prune};
 
 pub mod local;
 pub mod rclone;
 
 #[async_trait]
-pub trait Backup: Send + Sync {
+pub trait Backup: Prune + Send + Sync {
     async fn backup(&self, event: &ProtectEvent, video_data: &[u8]) -> Result<String>;
-    async fn prune(&self) -> Result<()>;
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

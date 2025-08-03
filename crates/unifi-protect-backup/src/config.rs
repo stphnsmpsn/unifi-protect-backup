@@ -238,7 +238,8 @@ async fn prompt_for_config() -> Result<String> {
                     "\nConfiguring Borg archive #{} (recommended for long-term storage):",
                     archive_remotes.len() + 1
                 );
-                let (ssh_key_path, borg_repo, borg_passphrase) = prompt_for_borg_config()?;
+                let (ssh_key_path, borg_repo, borg_passphrase, append_only) =
+                    prompt_for_borg_config()?;
 
                 let ssh_key_path_line = if ssh_key_path.is_empty() {
                     "".to_string()
@@ -252,14 +253,15 @@ async fn prompt_for_config() -> Result<String> {
                     format!(", borg-passphrase = \"{borg_passphrase}\"")
                 };
 
-                archive_remotes.push(format!("[[archive.remote]]\nborg = {{ borg-repo = \"{borg_repo}\"{ssh_key_path_line}{borg_passphrase_line} }}"));
+                archive_remotes.push(format!("[[archive.remote]]\nborg = {{ borg-repo = \"{borg_repo}\"{ssh_key_path_line}{borg_passphrase_line}, append-only = {append_only} }}"));
             }
             _ => {
                 println!(
                     "\nConfiguring Borg archive #{} (recommended for long-term storage):",
                     archive_remotes.len() + 1
                 );
-                let (ssh_key_path, borg_repo, borg_passphrase) = prompt_for_borg_config()?;
+                let (ssh_key_path, borg_repo, borg_passphrase, append_only) =
+                    prompt_for_borg_config()?;
 
                 let ssh_key_path_line = if ssh_key_path.is_empty() {
                     "".to_string()
@@ -273,7 +275,7 @@ async fn prompt_for_config() -> Result<String> {
                     format!(", borg-passphrase = \"{borg_passphrase}\"")
                 };
 
-                archive_remotes.push(format!("[[archive.remote]]\nborg = {{ borg-repo = \"{borg_repo}\"{ssh_key_path_line}{borg_passphrase_line} }}"));
+                archive_remotes.push(format!("[[archive.remote]]\nborg = {{ borg-repo = \"{borg_repo}\"{ssh_key_path_line}{borg_passphrase_line}, append-only = {append_only} }}"));
             }
         }
     }
@@ -317,14 +319,19 @@ path = "{database_path}"
     Ok(config)
 }
 
-fn prompt_for_borg_config() -> Result<(String, String, String)> {
+fn prompt_for_borg_config() -> Result<(String, String, String, bool)> {
     println!("\nConfiguring Borg backup...");
 
     let ssh_key_path = prompt_with_default("SSH key path (optional)", "")?;
     let borg_repo = prompt_with_default("Borg repository", "user@rsync.net:unifi-protect")?;
     let borg_passphrase = prompt_with_default("Borg passphrase (optional)", "")?;
+    let append_only_str = prompt_with_default(
+        "Is the remote repo configured as append_only (true/false)",
+        "false",
+    )?;
+    let append_only = append_only_str.to_lowercase() == "true";
 
-    Ok((ssh_key_path, borg_repo, borg_passphrase))
+    Ok((ssh_key_path, borg_repo, borg_passphrase, append_only))
 }
 
 fn prompt_for_rclone_config() -> Result<(String, String, bool, bool)> {

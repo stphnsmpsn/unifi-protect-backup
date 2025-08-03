@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use tokio::process::Command;
 use tracing::{debug, info, trace};
 
-use crate::{Error, Result, archive, archive::Archive};
+use crate::{Error, Result, archive, archive::Archive, task::Prune};
 
 const SECONDS_PER_DAY: u64 = 24 * 60 * 60; // 86400
 
@@ -16,6 +16,7 @@ pub struct Config {
     pub ssh_key_path: Option<PathBuf>,
     pub borg_repo: String,
     pub borg_passphrase: Option<String>,
+    pub append_only: bool,
 }
 
 pub struct BorgBackup {
@@ -86,8 +87,17 @@ impl Archive for BorgBackup {
 
         Ok(archive_name)
     }
+}
 
+#[async_trait]
+impl Prune for BorgBackup {
     async fn prune(&self) -> Result<()> {
+        if self.remote_config.append_only {
+            // we don't bother pruning. New archives will have less data and
+            // old backups will be cleaned via server-side compaction
+            return Ok(());
+        }
+
         info!(
             "Pruning old backups (retention: {:?} days)",
             self.backup_config.retention_period
@@ -101,6 +111,9 @@ impl Archive for BorgBackup {
             .arg("--keep-daily")
             .arg((self.backup_config.retention_period.as_secs() / SECONDS_PER_DAY).to_string())
             .arg(&self.remote_config.borg_repo);
+
+        // if self.remote_config.append_only {
+        //     cmd.arg("--append-only");
 
         if let Some(ref passphrase) = self.remote_config.borg_passphrase {
             cmd.env("BORG_PASSPHRASE", passphrase);

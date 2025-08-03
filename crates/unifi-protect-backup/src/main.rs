@@ -41,6 +41,7 @@ async fn main() -> Result<()> {
     let mut unifi_event_listener = task::UnifiEventListener::new(context.clone());
     let mut db_poller = task::BackupDbPoller::new(context.clone(), config.backup.clone());
     let mut archiver = task::Archiver::new(context.clone(), config.archive.clone());
+    let mut pruner = task::Pruner::new(context.clone(), config.backup.clone());
 
     tokio::select! {
         res = unifi_event_listener.run() => {
@@ -51,6 +52,9 @@ async fn main() -> Result<()> {
         }
         res = archiver.run() => {
             warn!("Archiver stopped: {:?}", res);
+        }
+        res = pruner.run() => {
+            warn!("Pruner stopped: {:?}", res);
         }
     }
 

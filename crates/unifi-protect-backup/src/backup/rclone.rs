@@ -6,7 +6,7 @@ use tokio::{io::AsyncWriteExt, process::Command};
 use tracing::{debug, info, trace};
 use unifi_protect_client::events::ProtectEvent;
 
-use crate::{Error, Result, backup, backup::Backup};
+use crate::{Error, Result, backup, backup::Backup, task::Prune};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all(deserialize = "kebab-case"))]
@@ -64,9 +64,133 @@ impl Backup for RcloneBackup {
                 .await
         }
     }
+}
 
+#[async_trait]
+impl Prune for RcloneBackup {
     async fn prune(&self) -> Result<()> {
-        todo!("Not implemented")
+        info!(
+            "Pruning old backups from rclone remote (retention: {:?})",
+            self.backup_config.retention_period
+        );
+
+        // Convert Duration to a format rclone understands (e.g., "30d", "720h", "43200m")
+        let retention_days = self.backup_config.retention_period.as_secs() / (24 * 60 * 60);
+        let min_age = if retention_days > 0 {
+            format!("{retention_days}d")
+        } else {
+            // Fallback to hours if less than a day
+            let retention_hours = self.backup_config.retention_period.as_secs() / (60 * 60);
+            if retention_hours > 0 {
+                format!("{retention_hours}h")
+            } else {
+                // Fallback to minutes
+                let retention_minutes = self.backup_config.retention_period.as_secs() / 60;
+                format!("{}m", retention_minutes.max(1)) // Ensure at least 1 minute
+            }
+        };
+
+        let remote_path = format!(
+            "{}:/{}",
+            self.remote_config.remote,
+            self.remote_config
+                .base_path
+                .trim_start_matches('/')
+                .trim_end_matches('/')
+        );
+
+        debug!("Pruning files older than {} from {}", min_age, remote_path);
+
+        // First, do a dry run to see what would be deleted
+        let dry_run_output = Command::new("rclone")
+            .arg("delete")
+            .arg(&remote_path)
+            .arg("--min-age")
+            .arg(&min_age)
+            .arg("--dry-run")
+            .arg("--verbose")
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .output()
+            .await
+            .map_err(|e| Error::Backup(format!("Failed to execute rclone dry-run: {e}")))?;
+
+        if !dry_run_output.status.success() {
+            let stderr = String::from_utf8_lossy(&dry_run_output.stderr);
+            return Err(Error::Backup(format!("Rclone dry-run failed: {stderr}")));
+        }
+
+        // rclone prints dry run info to stderr
+        let dry_run_stderr = String::from_utf8_lossy(&dry_run_output.stderr);
+        let files_to_delete: Vec<&str> = dry_run_stderr
+            .lines()
+            .filter(|line| line.contains("Skipped delete as --dry-run is set"))
+            .collect();
+
+        if files_to_delete.is_empty() {
+            info!(
+                remote = self.remote_config.remote,
+                min_age = min_age,
+                "No files older than {} found to prune",
+                min_age
+            );
+            return Ok(());
+        }
+
+        info!(
+            "Found {} files to delete that are older than {}",
+            files_to_delete.len(),
+            min_age
+        );
+
+        // Execute actual rclone delete command with --min-age filter
+        let output = Command::new("rclone")
+            .arg("delete")
+            .arg(&remote_path)
+            .arg("--min-age")
+            .arg(&min_age)
+            .arg("--verbose")
+            .arg("--b2-hard-delete")
+            .arg("--stats")
+            .arg("1s")
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .output()
+            .await
+            .map_err(|e| Error::Backup(format!("Failed to execute rclone delete: {e}")))?;
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return Err(Error::Backup(format!("Rclone prune failed: {stderr}")));
+        }
+
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        debug!("Rclone delete output: {}", stdout);
+
+        // Run cleanup to remove hidden versions on B2
+        info!("Running cleanup to remove hidden file versions from B2");
+        let cleanup_output = Command::new("rclone")
+            .arg("cleanup")
+            .arg(&remote_path)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .output()
+            .await
+            .map_err(|e| Error::Backup(format!("Failed to execute rclone cleanup: {e}")))?;
+
+        if !cleanup_output.status.success() {
+            let stderr = String::from_utf8_lossy(&cleanup_output.stderr);
+            debug!("Rclone cleanup warning (may be normal): {}", stderr);
+        }
+
+        info!(
+            remote = self.remote_config.remote,
+            min_age = min_age,
+            files_deleted = files_to_delete.len(),
+            "Successfully pruned old backups from rclone remote and cleaned up hidden versions"
+        );
+
+        Ok(())
     }
 }
 

@@ -1,6 +1,7 @@
 include:
   - project: 'stphnsmpsn/ci-templates'
     file:
+      - .gitlab-docker.yml
       - .gitlab-rust.yml
       - .gitlab-mkdocs.yml
 
@@ -9,3 +10,11 @@ stages:
   - test
   - build
   - deploy
+  - release
+
+release::docker::unifi-protect-backup:
+  stage: release
+  extends: .docker::prepare
+  needs: [ 'check::rust::clippy', 'check::rust::fmt', 'test::rust' ]
+  only:
+    - master
