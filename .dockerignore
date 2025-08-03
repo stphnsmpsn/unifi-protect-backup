@@ -1,6 +1,6 @@
 .claude/
 .data/
-.sqlx/
+#.sqlx/
 .secrets/
 docs/
 target/
