@@ -16,5 +16,5 @@ release::docker::unifi-protect-backup:
   stage: release
   extends: .docker::release
   needs: [ 'check::rust::clippy', 'check::rust::fmt', 'test::rust' ]
-#  only:
-#    - master
+  only:
+    - master
