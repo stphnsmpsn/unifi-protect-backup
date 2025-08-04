@@ -1,25 +1,16 @@
 # ---- Build Stage ----
-FROM rust:1.88.0-slim-bookworm AS build
-ARG DEBIAN_FRONTEND=noninteractive
-RUN apt update && apt install -y \
-    iputils-ping \
-    libpq-dev \
-    cmake \
-    pkg-config \
-    gcc \
-    g++ \
-    python3 \
-    libssl-dev \
-    protobuf-compiler \
-    git
-ARG DEBIAN_FRONTEND=noninteractive
+# This stage builds the application using the rust-builder image
+FROM gitlab-registry.stephensampson.dev/stphnsmpsn/ci-templates/rust-builder:latest AS build
+
 WORKDIR /app
 COPY . .
 RUN cargo build --release
 
-## ---- Production Stage ----
-FROM debian:bookworm AS production
-RUN apt update && apt install -y libssl-dev
-WORKDIR /app
+# ---- Production Release Image ----
+# This image is used to run the service binary.
+# It is built on top of the template base image and adds the service binary.
+FROM gitlab-registry.stephensampson.dev/stphnsmpsn/ci-templates/rust-base:latest AS release
+
 COPY --from=build /app/target/release/unifi-protect-backup ./
+USER app
 CMD [ "./unifi-protect-backup" ]
