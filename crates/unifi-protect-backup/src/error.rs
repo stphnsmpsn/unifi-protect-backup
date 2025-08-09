@@ -39,4 +39,7 @@ pub enum Error {
 
     #[error("General error: {0}")]
     General(String),
+
+    #[error("Logging error: {0}")]
+    Logging(String),
 }

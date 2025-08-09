@@ -19,6 +19,7 @@ pub struct Config {
     pub backup: backup::Config,
     pub archive: archive::Config,
     pub notifications: Option<NotificationConfig>,
+    pub logging: Option<LoggingConfig>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -36,6 +37,22 @@ pub struct NotificationConfig {
     pub smtp_password: Option<String>,
     pub email_from: Option<String>,
     pub email_to: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all(deserialize = "kebab-case"))]
+pub struct LoggingConfig {
+    pub loki: Option<LokiConfig>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all(deserialize = "kebab-case"))]
+pub struct LokiConfig {
+    pub url: String,
+    pub username: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_optional_file_const_or_env")]
+    pub password: Option<String>,
+    pub labels: Option<std::collections::HashMap<String, String>>,
 }
 
 #[derive(Parser, Debug)]
@@ -72,12 +89,10 @@ pub fn toml_from_file<T: serde::de::DeserializeOwned>(path: &str) -> Result<T> {
     Ok(config)
 }
 
-pub fn from_file_const_or_env<'de, D>(deserializer: D) -> std::result::Result<String, D::Error>
+fn resolve_file_const_or_env<E>(s: String) -> std::result::Result<String, E>
 where
-    D: serde::de::Deserializer<'de>,
+    E: serde::de::Error,
 {
-    let s = String::deserialize(deserializer)?;
-
     if let Some(s) = s.strip_prefix("file:") {
         std::fs::read_to_string(s).map_err(serde::de::Error::custom)
     } else if let Some(s) = s.strip_prefix("env:") {
@@ -86,6 +101,28 @@ where
         })
     } else {
         Ok(s)
+    }
+}
+
+pub fn from_file_const_or_env<'de, D>(deserializer: D) -> std::result::Result<String, D::Error>
+where
+    D: serde::de::Deserializer<'de>,
+{
+    let s = String::deserialize(deserializer)?;
+    resolve_file_const_or_env(s)
+}
+
+pub fn deserialize_optional_file_const_or_env<'de, D>(
+    deserializer: D,
+) -> std::result::Result<Option<String>, D::Error>
+where
+    D: serde::de::Deserializer<'de>,
+{
+    let opt_s: Option<String> = Option::deserialize(deserializer)?;
+
+    match opt_s {
+        Some(s) => resolve_file_const_or_env(s).map(Some),
+        None => Ok(None),
     }
 }
 
@@ -171,6 +208,43 @@ async fn prompt_for_config() -> Result<String> {
             std::env::var("HOME").unwrap_or_else(|_| ".".to_string())
         ),
     )?;
+
+    // Prompt for Loki logging configuration
+    println!("\nOptional: Configure Loki logging export");
+    let enable_loki = prompt_with_default("Enable Loki logging export (true/false)", "false")?;
+
+    let loki_config = if enable_loki.to_lowercase() == "true" {
+        let loki_url = prompt_with_default("Loki endpoint URL", "http://localhost:3100")?;
+        let loki_username = prompt_with_default("Loki username (optional)", "")?;
+        let loki_password = prompt_with_default(
+            "Loki password (optional, can use env:VAR_NAME or file:/path)",
+            "",
+        )?;
+
+        let loki_username_config = if loki_username.is_empty() {
+            "".to_string()
+        } else {
+            format!("username = \"{loki_username}\"")
+        };
+
+        let loki_password_config = if loki_password.is_empty() {
+            "".to_string()
+        } else {
+            format!("password = \"{loki_password}\"")
+        };
+
+        let mut loki_fields = vec![format!("url = \"{}\"", loki_url)];
+        if !loki_username_config.is_empty() {
+            loki_fields.push(loki_username_config);
+        }
+        if !loki_password_config.is_empty() {
+            loki_fields.push(loki_password_config);
+        }
+
+        format!("\n[logging.loki]\n{}", loki_fields.join("\n"))
+    } else {
+        "".to_string()
+    };
 
     let detection_types_array = detection_types
         .split(',')
@@ -313,6 +387,8 @@ purge-interval = "{archive_purge_interval}"
 
 [database]
 path = "{database_path}"
+
+{loki_config}
 "#
     );
 

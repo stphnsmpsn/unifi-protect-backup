@@ -2,25 +2,16 @@ use std::sync::Arc;
 
 use clap::Parser;
 use tracing::{debug, error, info, warn};
-use tracing_subscriber::{EnvFilter, layer::SubscriberExt, util::SubscriberInitExt};
 
 use unifi_protect_backup::{
     Result,
     config::{Args, Config, check_and_create_config},
     context::Context,
-    task,
+    logging, task,
 };
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    tracing_subscriber::registry()
-        .with(tracing_subscriber::fmt::layer().with_ansi(true))
-        .with(EnvFilter::try_from_default_env().unwrap_or_else(|_| {
-            EnvFilter::new("info,sqlx=warn,reqwest=warn,hyper=warn,tungstenite=warn")
-        }))
-        .init();
-
-    debug!("Parsing config...");
     let args: Args<Config> = Args::parse();
 
     // Only prompt for config setup if no config file was provided via --config
@@ -35,7 +26,13 @@ async fn main() -> Result<()> {
         .inspect_err(|err| error!(err = ?err, "Error getting config"))?;
     debug!(config = ?config, "Parsed config successfully");
 
-    info!("Starting UniFi Protect Backup");
+    logging::init_logging(config.logging.clone())?;
+
+    info!(
+        "Starting {} v{}",
+        env!("CARGO_PKG_NAME"),
+        env!("CARGO_PKG_VERSION")
+    );
 
     let context = Arc::new(Context::new(config.clone()).await?);
     let mut unifi_event_listener = task::UnifiEventListener::new(context.clone());
