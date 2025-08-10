@@ -6,6 +6,7 @@ use unifi_protect_data::Event;
 
 use crate::{Error, Result};
 
+#[tracing::instrument(skip(protect_event))]
 pub fn protect_event_to_database_event(protect_event: &ProtectEvent) -> Event {
     Event {
         id: protect_event.id.clone(),
@@ -17,6 +18,7 @@ pub fn protect_event_to_database_event(protect_event: &ProtectEvent) -> Event {
     }
 }
 
+#[tracing::instrument(skip(event, bootstrap))]
 pub fn protect_event_from_database_event(event: Event, bootstrap: &Bootstrap) -> ProtectEvent {
     ProtectEvent {
         id: event.id,

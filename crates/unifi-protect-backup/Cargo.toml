@@ -8,26 +8,31 @@ license = "MIT"
 repository = "https://gitlab.stephensampson.dev/homelab/unifi-protect-backup"
 
 [dependencies]
-unifi-protect-client.workspace = true
-unifi-protect-data.workspace = true
-
+async-trait.workspace = true
+base64.workspace = true
 chrono = { workspace = true, features = ["serde"] }
 clap = { workspace = true, features = ["derive", "env"] }
 futures-util.workspace = true
 humantime-serde.workspace = true
+native-tls.workspace = true
+opentelemetry.workspace = true
+opentelemetry-otlp = { workspace = true, features = ["grpc-tonic"] }
+opentelemetry_sdk = { workspace = true, features = ["rt-tokio"] }
 reqwest = { workspace = true, features = ["json", "stream"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 tempfile.workspace = true
 thiserror.workspace = true
 tokio = { workspace = true, features = ["full"] }
-tracing.workspace = true
-tracing-subscriber = { workspace = true, features = ["env-filter"] }
-tracing-loki = "0.2"
-base64 = "0.22"
 toml.workspace = true
-async-trait.workspace = true
-native-tls.workspace = true
+tracing.workspace = true
+tracing-core.workspace = true
+tracing-loki.workspace = true
+tracing-opentelemetry.workspace = true
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
+unifi-protect-client.workspace = true
+unifi-protect-data.workspace = true
 
 [dev-dependencies]
+
 #tokio-test = "0.4"

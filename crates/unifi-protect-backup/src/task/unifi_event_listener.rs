@@ -48,6 +48,7 @@ impl UnifiEventListener {
         }
     }
 
+    #[tracing::instrument(skip(self, _ws_message))]
     async fn process_new_motion_event(
         &mut self,
         id: String,
@@ -68,6 +69,7 @@ impl UnifiEventListener {
         Ok(())
     }
 
+    #[tracing::instrument(skip(self, ws_message))]
     async fn process_completed_motion_event(
         &mut self,
         id: String,

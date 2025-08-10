@@ -35,6 +35,7 @@ impl RcloneBackup {
 
 #[async_trait]
 impl Backup for RcloneBackup {
+    #[tracing::instrument(skip(self, video_data))]
     async fn backup(&self, event: &ProtectEvent, video_data: &[u8]) -> Result<String> {
         let filename = event.format_filename(&self.backup_config.file_structure_format);
 
@@ -68,6 +69,7 @@ impl Backup for RcloneBackup {
 
 #[async_trait]
 impl Prune for RcloneBackup {
+    #[tracing::instrument(skip(self))]
     async fn prune(&self) -> Result<()> {
         info!(
             "Pruning old backups from rclone remote (retention: {:?})",
@@ -195,6 +197,7 @@ impl Prune for RcloneBackup {
 }
 
 impl RcloneBackup {
+    #[tracing::instrument(skip(self, video_data))]
     async fn single_stream_upload(
         &self,
         video_data: &[u8],
@@ -269,6 +272,7 @@ impl RcloneBackup {
         Ok(filename.to_string())
     }
 
+    #[tracing::instrument(skip(self, video_data))]
     async fn chunked_stream_upload(
         &self,
         video_data: &[u8],
@@ -345,6 +349,7 @@ impl RcloneBackup {
         Ok(filename.to_string())
     }
 
+    #[tracing::instrument(skip(self, video_data))]
     async fn temp_file_upload(
         &self,
         video_data: &[u8],

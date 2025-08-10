@@ -50,6 +50,7 @@ pub enum SmartDetectType {
 }
 
 impl ProtectEvent {
+    #[tracing::instrument(skip(self))]
     pub fn should_backup(&self, detection_types: &[String]) -> bool {
         if detection_types.is_empty() {
             return true;
@@ -79,6 +80,7 @@ impl ProtectEvent {
         }
     }
 
+    #[tracing::instrument(skip(self))]
     pub fn format_detection_type(&self) -> String {
         match &self.event_type {
             EventType::Motion => "motion".to_string(),
@@ -107,6 +109,7 @@ impl ProtectEvent {
         }
     }
 
+    #[tracing::instrument(skip(self))]
     pub fn format_filename(&self, format_string: &str) -> String {
         let start_time = self.start_time.map_or_else(Utc::now, |t| {
             DateTime::<Utc>::from_timestamp_millis(t).unwrap_or_else(Utc::now)

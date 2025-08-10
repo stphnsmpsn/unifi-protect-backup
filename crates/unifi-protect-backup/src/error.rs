@@ -42,4 +42,7 @@ pub enum Error {
 
     #[error("Logging error: {0}")]
     Logging(String),
+
+    #[error("Tracing error: {0}")]
+    Tracing(String),
 }

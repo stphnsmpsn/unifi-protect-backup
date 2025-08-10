@@ -12,6 +12,8 @@ chrono = { workspace = true, features = ["serde"] }
 serde = { workspace = true, features = ["derive"] }
 sqlx = { workspace = true, features = ["sqlite", "runtime-tokio-native-tls", "chrono"] }
 thiserror.workspace = true
+tracing.workspace = true
 
 [dev-dependencies]
+
 #tokio-test = "0.4"

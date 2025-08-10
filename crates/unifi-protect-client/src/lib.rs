@@ -37,6 +37,7 @@ struct Auth {
 }
 
 impl ProtectClient {
+    #[tracing::instrument(skip(config))]
     pub fn new(config: UnifiConfig) -> Result<Self> {
         let client = Client::builder()
             .danger_accept_invalid_certs(!config.verify_ssl)
@@ -57,6 +58,7 @@ impl ProtectClient {
         })
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn login(&self) -> Result<()> {
         let login_url = self
             .base_url
@@ -104,6 +106,7 @@ impl ProtectClient {
         Ok(())
     }
 
+    #[tracing::instrument(skip(self, builder))]
     fn add_headers(&self, mut builder: RequestBuilder) -> RequestBuilder {
         let auth = self.auth.load();
 
@@ -119,6 +122,7 @@ impl ProtectClient {
     }
 
     /// Execute a request with automatic reauthentication on 401
+    #[tracing::instrument(skip(self, request_fn))]
     async fn execute_with_retry<F, Fut>(&self, request_fn: F) -> Result<Response>
     where
         F: Fn() -> Fut,
@@ -164,6 +168,7 @@ impl ProtectClient {
         unreachable!("Loop should have returned by now")
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn get_bootstrap(&self) -> Result<Bootstrap> {
         let bootstrap_url = self
             .base_url
@@ -192,6 +197,7 @@ impl ProtectClient {
         Ok(bootstrap)
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn download_event_video(
         &self,
         camera_id: &str,
@@ -242,6 +248,7 @@ impl ProtectClient {
     //     Ok(response)
     // }
 
+    #[tracing::instrument(skip(self))]
     pub async fn connect_websocket(&self) -> Result<mpsc::Receiver<WebSocketMessage>> {
         let ws_url = format!(
             "wss://{}:{}/proxy/protect/ws/updates",
@@ -313,6 +320,7 @@ impl ProtectClient {
     }
 }
 
+#[tracing::instrument(skip(cookie_str))]
 fn extract_auth_cookie(cookie_str: &str) -> Option<String> {
     // Parse the Set-Cookie header to extract the auth token
     if let Some(start) = cookie_str.find("TOKEN=") {

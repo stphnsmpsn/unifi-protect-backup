@@ -20,6 +20,7 @@ pub struct Config {
     pub archive: archive::Config,
     pub notifications: Option<NotificationConfig>,
     pub logging: Option<LoggingConfig>,
+    pub tracing: Option<TracingConfig>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -47,12 +48,25 @@ pub struct LoggingConfig {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all(deserialize = "kebab-case"))]
+pub struct TracingConfig {
+    pub tempo: Option<TempoConfig>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all(deserialize = "kebab-case"))]
 pub struct LokiConfig {
     pub url: String,
     pub username: Option<String>,
     #[serde(default, deserialize_with = "deserialize_optional_file_const_or_env")]
     pub password: Option<String>,
     pub labels: Option<std::collections::HashMap<String, String>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all(deserialize = "kebab-case"))]
+pub struct TempoConfig {
+    pub url: String,
+    pub port: u16,
 }
 
 #[derive(Parser, Debug)]
@@ -82,6 +96,7 @@ pub fn default_config_path() -> String {
     }
 }
 
+#[tracing::instrument]
 pub fn toml_from_file<T: serde::de::DeserializeOwned>(path: &str) -> Result<T> {
     let toml = std::fs::read_to_string(path)?;
     let config_json = toml::from_str(&toml)?;
@@ -126,6 +141,7 @@ where
     }
 }
 
+#[tracing::instrument]
 pub async fn check_and_create_config() -> Result<()> {
     let home_dir = std::env::var("HOME").map_err(|_| {
         std::io::Error::new(
@@ -242,6 +258,30 @@ async fn prompt_for_config() -> Result<String> {
         }
 
         format!("\n[logging.loki]\n{}", loki_fields.join("\n"))
+    } else {
+        "".to_string()
+    };
+
+    // Prompt for Tempo tracing configuration
+    println!("\nOptional: Configure Tempo tracing export");
+    let enable_tempo = prompt_with_default("Enable Tempo tracing export (true/false)", "false")?;
+
+    let tempo_config = if enable_tempo.to_lowercase() == "true" {
+        let tempo_url = prompt_with_default("Tempo endpoint URL", "localhost")?;
+        let tempo_port = prompt_with_default("Tempo OTLP HTTP port (optional)", "4318")?;
+
+        let tempo_port_config = if tempo_port.is_empty() {
+            "".to_string()
+        } else {
+            format!("port = {tempo_port}")
+        };
+
+        let mut tempo_fields = vec![format!("url = \"{}\"", tempo_url)];
+        if !tempo_port_config.is_empty() {
+            tempo_fields.push(tempo_port_config);
+        }
+
+        format!("\n[tracing.tempo]\n{}", tempo_fields.join("\n"))
     } else {
         "".to_string()
     };
@@ -389,6 +429,8 @@ purge-interval = "{archive_purge_interval}"
 path = "{database_path}"
 
 {loki_config}
+
+{tempo_config}
 "#
     );
 

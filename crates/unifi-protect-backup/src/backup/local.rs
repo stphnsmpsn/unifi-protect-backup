@@ -28,6 +28,7 @@ impl LocalBackup {
         }
     }
 
+    #[tracing::instrument(skip(self))]
     async fn prune_directory(
         &self,
         dir_path: &PathBuf,
@@ -97,6 +98,7 @@ impl LocalBackup {
 
 #[async_trait]
 impl Backup for LocalBackup {
+    #[tracing::instrument(skip(self, video_data))]
     async fn backup(&self, event: &ProtectEvent, video_data: &[u8]) -> Result<String> {
         let filename = event.format_filename(&self.backup_config.file_structure_format);
         info!("Backing up event {} as {}", event.id, filename);
@@ -123,6 +125,7 @@ impl Backup for LocalBackup {
 
 #[async_trait]
 impl Prune for LocalBackup {
+    #[tracing::instrument(skip(self))]
     async fn prune(&self) -> Result<()> {
         info!(
             "Pruning old backups from local storage (retention: {:?})",

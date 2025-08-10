@@ -20,6 +20,7 @@ pub struct Context {
 }
 
 impl Context {
+    #[tracing::instrument(skip(config))]
     pub async fn new(config: Config) -> crate::Result<Self> {
         let protect_client = ProtectClient::new(config.unifi.clone())?;
 

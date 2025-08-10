@@ -35,6 +35,7 @@ impl BorgBackup {
 
 #[async_trait]
 impl Archive for BorgBackup {
+    #[tracing::instrument(skip(self))]
     async fn archive(&self) -> Result<String> {
         let archive_name = format!(
             "{}::{}",
@@ -91,6 +92,7 @@ impl Archive for BorgBackup {
 
 #[async_trait]
 impl Prune for BorgBackup {
+    #[tracing::instrument(skip(self))]
     async fn prune(&self) -> Result<()> {
         if self.remote_config.append_only {
             // we don't bother pruning. New archives will have less data and

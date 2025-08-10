@@ -48,6 +48,7 @@ impl Database {
         Ok(Database { pool })
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn insert_event(&self, event: &Event) -> Result<()> {
         sqlx::query!(
             r#"
@@ -67,6 +68,7 @@ impl Database {
         Ok(())
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn mark_event_backed_up(&self, event_id: &str) -> Result<()> {
         sqlx::query!("UPDATE events SET backed_up = TRUE WHERE id = ?", event_id)
             .execute(&self.pool)
@@ -75,6 +77,7 @@ impl Database {
         Ok(())
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn insert_backup(&self, backup: &Backup) -> Result<()> {
         let size_bytes = backup.size_bytes as i64;
         let timestamp = backup.backup_time.timestamp();
@@ -94,6 +97,7 @@ impl Database {
         Ok(())
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn get_event_by_id(&self, id: &str) -> Result<Option<Event>> {
         let event = sqlx::query_as!(
             Event,
@@ -114,6 +118,7 @@ impl Database {
         Ok(event)
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn get_events_not_backed_up(&self) -> Result<Vec<Event>> {
         let events = sqlx::query_as!(
             Event,
@@ -133,6 +138,7 @@ impl Database {
         Ok(events)
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn get_events_by_camera(&self, camera_id: &str) -> Result<Vec<Event>> {
         let events = sqlx::query_as!(
             Event,
@@ -153,6 +159,7 @@ impl Database {
         Ok(events)
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn cleanup_old_events(&self, retention_period: u32) -> Result<()> {
         let cutoff_time =
             (Utc::now() - chrono::Duration::days(retention_period as i64)).timestamp();

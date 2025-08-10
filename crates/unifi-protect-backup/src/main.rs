@@ -7,7 +7,7 @@ use unifi_protect_backup::{
     Result,
     config::{Args, Config, check_and_create_config},
     context::Context,
-    logging, task,
+    opentelemetry, task,
 };
 
 #[tokio::main]
@@ -26,7 +26,7 @@ async fn main() -> Result<()> {
         .inspect_err(|err| error!(err = ?err, "Error getting config"))?;
     debug!(config = ?config, "Parsed config successfully");
 
-    logging::init_logging(config.logging.clone())?;
+    let maybe_loki_task = opentelemetry::init(&config);
 
     info!(
         "Starting {} v{}",
@@ -53,6 +53,15 @@ async fn main() -> Result<()> {
         res = pruner.run() => {
             warn!("Pruner stopped: {:?}", res);
         }
+        res = async {
+          if let Some(loki_task) = maybe_loki_task {
+              loki_task.await
+          } else {
+              std::future::pending().await // Never resolves
+          }
+      } => {
+          warn!("Loki task stopped: {:?}", res);
+      }
     }
 
     info!("Exiting...");
