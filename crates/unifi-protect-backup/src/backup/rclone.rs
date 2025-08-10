@@ -1,6 +1,7 @@
 use async_trait::async_trait;
+use metered::{ErrorCount, HitCount, ResponseTime, Throughput};
 use serde::{Deserialize, Serialize};
-use std::process::Stdio;
+use std::{process::Stdio, sync::Arc};
 use tempfile::NamedTempFile;
 use tokio::{io::AsyncWriteExt, process::Command};
 use tracing::{debug, info, trace};
@@ -22,20 +23,25 @@ pub struct Config {
 pub struct RcloneBackup {
     pub backup_config: backup::Config,
     pub remote_config: Config,
+    pub metrics: Arc<Metrics>,
 }
 
+#[metered::metered(registry = Metrics, visibility = pub)]
 impl RcloneBackup {
-    pub fn new(backup_config: backup::Config, remote_config: Config) -> Self {
+    pub fn new(
+        backup_config: backup::Config,
+        remote_config: Config,
+        metrics: Arc<Metrics>,
+    ) -> Self {
         Self {
             backup_config,
             remote_config,
+            metrics,
         }
     }
-}
 
-#[async_trait]
-impl Backup for RcloneBackup {
     #[tracing::instrument(skip(self, video_data))]
+    #[measure([HitCount, Throughput, ErrorCount, ResponseTime])]
     async fn backup(&self, event: &ProtectEvent, video_data: &[u8]) -> Result<String> {
         let filename = event.format_filename(&self.backup_config.file_structure_format);
 
@@ -65,11 +71,9 @@ impl Backup for RcloneBackup {
                 .await
         }
     }
-}
 
-#[async_trait]
-impl Prune for RcloneBackup {
     #[tracing::instrument(skip(self))]
+    #[measure([HitCount, Throughput, ErrorCount, ResponseTime])]
     async fn prune(&self) -> Result<()> {
         info!(
             "Pruning old backups from rclone remote (retention: {:?})",
@@ -194,10 +198,9 @@ impl Prune for RcloneBackup {
 
         Ok(())
     }
-}
 
-impl RcloneBackup {
     #[tracing::instrument(skip(self, video_data))]
+    #[measure([HitCount, Throughput, ErrorCount, ResponseTime])]
     async fn single_stream_upload(
         &self,
         video_data: &[u8],
@@ -273,6 +276,7 @@ impl RcloneBackup {
     }
 
     #[tracing::instrument(skip(self, video_data))]
+    #[measure([HitCount, Throughput, ErrorCount, ResponseTime])]
     async fn chunked_stream_upload(
         &self,
         video_data: &[u8],
@@ -350,6 +354,7 @@ impl RcloneBackup {
     }
 
     #[tracing::instrument(skip(self, video_data))]
+    #[measure([HitCount, Throughput, ErrorCount, ResponseTime])]
     async fn temp_file_upload(
         &self,
         video_data: &[u8],
@@ -400,5 +405,20 @@ impl RcloneBackup {
         );
 
         Ok(filename.to_string())
+    }
+}
+
+#[async_trait]
+impl Backup for RcloneBackup {
+    async fn backup(&self, event: &ProtectEvent, video_data: &[u8]) -> Result<String> {
+        self.backup(event, video_data).await
+    }
+}
+
+#[async_trait]
+impl Prune for RcloneBackup {
+    #[tracing::instrument(skip(self))]
+    async fn prune(&self) -> Result<()> {
+        self.prune().await
     }
 }

@@ -1,0 +1,224 @@
+---
+source: crates/unifi-protect-backup/src/metrics.rs
+expression: "serde_prometheus::to_string(&Metrics::default(), None,\nstd::collections::HashMap::new()).unwrap()"
+---
+hit_count{path = "local_backup/prune_directory"} 0
+throughput_samples{path = "local_backup/prune_directory"} 0
+throughput_min{path = "local_backup/prune_directory"} 0
+throughput_max{path = "local_backup/prune_directory"} 0
+throughput_mean{path = "local_backup/prune_directory"} 0
+throughput_stdev{path = "local_backup/prune_directory"} 0
+throughput{quantile = "0.9", path = "local_backup/prune_directory"} 0
+throughput{quantile = "0.95", path = "local_backup/prune_directory"} 0
+throughput{quantile = "0.99", path = "local_backup/prune_directory"} 0
+throughput{quantile = "0.999", path = "local_backup/prune_directory"} 0
+throughput{quantile = "0.9999", path = "local_backup/prune_directory"} 0
+error_count{path = "local_backup/prune_directory"} 0
+response_time_samples{path = "local_backup/prune_directory"} 0
+response_time_min{path = "local_backup/prune_directory"} 0
+response_time_max{path = "local_backup/prune_directory"} 0
+response_time_mean{path = "local_backup/prune_directory"} 0
+response_time_stdev{path = "local_backup/prune_directory"} 0
+response_time{quantile = "0.9", path = "local_backup/prune_directory"} 0
+response_time{quantile = "0.95", path = "local_backup/prune_directory"} 0
+response_time{quantile = "0.99", path = "local_backup/prune_directory"} 0
+response_time{quantile = "0.999", path = "local_backup/prune_directory"} 0
+response_time{quantile = "0.9999", path = "local_backup/prune_directory"} 0
+hit_count{path = "local_backup/backup"} 0
+throughput_samples{path = "local_backup/backup"} 0
+throughput_min{path = "local_backup/backup"} 0
+throughput_max{path = "local_backup/backup"} 0
+throughput_mean{path = "local_backup/backup"} 0
+throughput_stdev{path = "local_backup/backup"} 0
+throughput{quantile = "0.9", path = "local_backup/backup"} 0
+throughput{quantile = "0.95", path = "local_backup/backup"} 0
+throughput{quantile = "0.99", path = "local_backup/backup"} 0
+throughput{quantile = "0.999", path = "local_backup/backup"} 0
+throughput{quantile = "0.9999", path = "local_backup/backup"} 0
+error_count{path = "local_backup/backup"} 0
+response_time_samples{path = "local_backup/backup"} 0
+response_time_min{path = "local_backup/backup"} 0
+response_time_max{path = "local_backup/backup"} 0
+response_time_mean{path = "local_backup/backup"} 0
+response_time_stdev{path = "local_backup/backup"} 0
+response_time{quantile = "0.9", path = "local_backup/backup"} 0
+response_time{quantile = "0.95", path = "local_backup/backup"} 0
+response_time{quantile = "0.99", path = "local_backup/backup"} 0
+response_time{quantile = "0.999", path = "local_backup/backup"} 0
+response_time{quantile = "0.9999", path = "local_backup/backup"} 0
+hit_count{path = "local_backup/prune"} 0
+throughput_samples{path = "local_backup/prune"} 0
+throughput_min{path = "local_backup/prune"} 0
+throughput_max{path = "local_backup/prune"} 0
+throughput_mean{path = "local_backup/prune"} 0
+throughput_stdev{path = "local_backup/prune"} 0
+throughput{quantile = "0.9", path = "local_backup/prune"} 0
+throughput{quantile = "0.95", path = "local_backup/prune"} 0
+throughput{quantile = "0.99", path = "local_backup/prune"} 0
+throughput{quantile = "0.999", path = "local_backup/prune"} 0
+throughput{quantile = "0.9999", path = "local_backup/prune"} 0
+error_count{path = "local_backup/prune"} 0
+response_time_samples{path = "local_backup/prune"} 0
+response_time_min{path = "local_backup/prune"} 0
+response_time_max{path = "local_backup/prune"} 0
+response_time_mean{path = "local_backup/prune"} 0
+response_time_stdev{path = "local_backup/prune"} 0
+response_time{quantile = "0.9", path = "local_backup/prune"} 0
+response_time{quantile = "0.95", path = "local_backup/prune"} 0
+response_time{quantile = "0.99", path = "local_backup/prune"} 0
+response_time{quantile = "0.999", path = "local_backup/prune"} 0
+response_time{quantile = "0.9999", path = "local_backup/prune"} 0
+hit_count{path = "rclone_backup/backup"} 0
+throughput_samples{path = "rclone_backup/backup"} 0
+throughput_min{path = "rclone_backup/backup"} 0
+throughput_max{path = "rclone_backup/backup"} 0
+throughput_mean{path = "rclone_backup/backup"} 0
+throughput_stdev{path = "rclone_backup/backup"} 0
+throughput{quantile = "0.9", path = "rclone_backup/backup"} 0
+throughput{quantile = "0.95", path = "rclone_backup/backup"} 0
+throughput{quantile = "0.99", path = "rclone_backup/backup"} 0
+throughput{quantile = "0.999", path = "rclone_backup/backup"} 0
+throughput{quantile = "0.9999", path = "rclone_backup/backup"} 0
+error_count{path = "rclone_backup/backup"} 0
+response_time_samples{path = "rclone_backup/backup"} 0
+response_time_min{path = "rclone_backup/backup"} 0
+response_time_max{path = "rclone_backup/backup"} 0
+response_time_mean{path = "rclone_backup/backup"} 0
+response_time_stdev{path = "rclone_backup/backup"} 0
+response_time{quantile = "0.9", path = "rclone_backup/backup"} 0
+response_time{quantile = "0.95", path = "rclone_backup/backup"} 0
+response_time{quantile = "0.99", path = "rclone_backup/backup"} 0
+response_time{quantile = "0.999", path = "rclone_backup/backup"} 0
+response_time{quantile = "0.9999", path = "rclone_backup/backup"} 0
+hit_count{path = "rclone_backup/prune"} 0
+throughput_samples{path = "rclone_backup/prune"} 0
+throughput_min{path = "rclone_backup/prune"} 0
+throughput_max{path = "rclone_backup/prune"} 0
+throughput_mean{path = "rclone_backup/prune"} 0
+throughput_stdev{path = "rclone_backup/prune"} 0
+throughput{quantile = "0.9", path = "rclone_backup/prune"} 0
+throughput{quantile = "0.95", path = "rclone_backup/prune"} 0
+throughput{quantile = "0.99", path = "rclone_backup/prune"} 0
+throughput{quantile = "0.999", path = "rclone_backup/prune"} 0
+throughput{quantile = "0.9999", path = "rclone_backup/prune"} 0
+error_count{path = "rclone_backup/prune"} 0
+response_time_samples{path = "rclone_backup/prune"} 0
+response_time_min{path = "rclone_backup/prune"} 0
+response_time_max{path = "rclone_backup/prune"} 0
+response_time_mean{path = "rclone_backup/prune"} 0
+response_time_stdev{path = "rclone_backup/prune"} 0
+response_time{quantile = "0.9", path = "rclone_backup/prune"} 0
+response_time{quantile = "0.95", path = "rclone_backup/prune"} 0
+response_time{quantile = "0.99", path = "rclone_backup/prune"} 0
+response_time{quantile = "0.999", path = "rclone_backup/prune"} 0
+response_time{quantile = "0.9999", path = "rclone_backup/prune"} 0
+hit_count{path = "rclone_backup/single_stream_upload"} 0
+throughput_samples{path = "rclone_backup/single_stream_upload"} 0
+throughput_min{path = "rclone_backup/single_stream_upload"} 0
+throughput_max{path = "rclone_backup/single_stream_upload"} 0
+throughput_mean{path = "rclone_backup/single_stream_upload"} 0
+throughput_stdev{path = "rclone_backup/single_stream_upload"} 0
+throughput{quantile = "0.9", path = "rclone_backup/single_stream_upload"} 0
+throughput{quantile = "0.95", path = "rclone_backup/single_stream_upload"} 0
+throughput{quantile = "0.99", path = "rclone_backup/single_stream_upload"} 0
+throughput{quantile = "0.999", path = "rclone_backup/single_stream_upload"} 0
+throughput{quantile = "0.9999", path = "rclone_backup/single_stream_upload"} 0
+error_count{path = "rclone_backup/single_stream_upload"} 0
+response_time_samples{path = "rclone_backup/single_stream_upload"} 0
+response_time_min{path = "rclone_backup/single_stream_upload"} 0
+response_time_max{path = "rclone_backup/single_stream_upload"} 0
+response_time_mean{path = "rclone_backup/single_stream_upload"} 0
+response_time_stdev{path = "rclone_backup/single_stream_upload"} 0
+response_time{quantile = "0.9", path = "rclone_backup/single_stream_upload"} 0
+response_time{quantile = "0.95", path = "rclone_backup/single_stream_upload"} 0
+response_time{quantile = "0.99", path = "rclone_backup/single_stream_upload"} 0
+response_time{quantile = "0.999", path = "rclone_backup/single_stream_upload"} 0
+response_time{quantile = "0.9999", path = "rclone_backup/single_stream_upload"} 0
+hit_count{path = "rclone_backup/chunked_stream_upload"} 0
+throughput_samples{path = "rclone_backup/chunked_stream_upload"} 0
+throughput_min{path = "rclone_backup/chunked_stream_upload"} 0
+throughput_max{path = "rclone_backup/chunked_stream_upload"} 0
+throughput_mean{path = "rclone_backup/chunked_stream_upload"} 0
+throughput_stdev{path = "rclone_backup/chunked_stream_upload"} 0
+throughput{quantile = "0.9", path = "rclone_backup/chunked_stream_upload"} 0
+throughput{quantile = "0.95", path = "rclone_backup/chunked_stream_upload"} 0
+throughput{quantile = "0.99", path = "rclone_backup/chunked_stream_upload"} 0
+throughput{quantile = "0.999", path = "rclone_backup/chunked_stream_upload"} 0
+throughput{quantile = "0.9999", path = "rclone_backup/chunked_stream_upload"} 0
+error_count{path = "rclone_backup/chunked_stream_upload"} 0
+response_time_samples{path = "rclone_backup/chunked_stream_upload"} 0
+response_time_min{path = "rclone_backup/chunked_stream_upload"} 0
+response_time_max{path = "rclone_backup/chunked_stream_upload"} 0
+response_time_mean{path = "rclone_backup/chunked_stream_upload"} 0
+response_time_stdev{path = "rclone_backup/chunked_stream_upload"} 0
+response_time{quantile = "0.9", path = "rclone_backup/chunked_stream_upload"} 0
+response_time{quantile = "0.95", path = "rclone_backup/chunked_stream_upload"} 0
+response_time{quantile = "0.99", path = "rclone_backup/chunked_stream_upload"} 0
+response_time{quantile = "0.999", path = "rclone_backup/chunked_stream_upload"} 0
+response_time{quantile = "0.9999", path = "rclone_backup/chunked_stream_upload"} 0
+hit_count{path = "rclone_backup/temp_file_upload"} 0
+throughput_samples{path = "rclone_backup/temp_file_upload"} 0
+throughput_min{path = "rclone_backup/temp_file_upload"} 0
+throughput_max{path = "rclone_backup/temp_file_upload"} 0
+throughput_mean{path = "rclone_backup/temp_file_upload"} 0
+throughput_stdev{path = "rclone_backup/temp_file_upload"} 0
+throughput{quantile = "0.9", path = "rclone_backup/temp_file_upload"} 0
+throughput{quantile = "0.95", path = "rclone_backup/temp_file_upload"} 0
+throughput{quantile = "0.99", path = "rclone_backup/temp_file_upload"} 0
+throughput{quantile = "0.999", path = "rclone_backup/temp_file_upload"} 0
+throughput{quantile = "0.9999", path = "rclone_backup/temp_file_upload"} 0
+error_count{path = "rclone_backup/temp_file_upload"} 0
+response_time_samples{path = "rclone_backup/temp_file_upload"} 0
+response_time_min{path = "rclone_backup/temp_file_upload"} 0
+response_time_max{path = "rclone_backup/temp_file_upload"} 0
+response_time_mean{path = "rclone_backup/temp_file_upload"} 0
+response_time_stdev{path = "rclone_backup/temp_file_upload"} 0
+response_time{quantile = "0.9", path = "rclone_backup/temp_file_upload"} 0
+response_time{quantile = "0.95", path = "rclone_backup/temp_file_upload"} 0
+response_time{quantile = "0.99", path = "rclone_backup/temp_file_upload"} 0
+response_time{quantile = "0.999", path = "rclone_backup/temp_file_upload"} 0
+response_time{quantile = "0.9999", path = "rclone_backup/temp_file_upload"} 0
+hit_count{path = "borg_archive/archive"} 0
+throughput_samples{path = "borg_archive/archive"} 0
+throughput_min{path = "borg_archive/archive"} 0
+throughput_max{path = "borg_archive/archive"} 0
+throughput_mean{path = "borg_archive/archive"} 0
+throughput_stdev{path = "borg_archive/archive"} 0
+throughput{quantile = "0.9", path = "borg_archive/archive"} 0
+throughput{quantile = "0.95", path = "borg_archive/archive"} 0
+throughput{quantile = "0.99", path = "borg_archive/archive"} 0
+throughput{quantile = "0.999", path = "borg_archive/archive"} 0
+throughput{quantile = "0.9999", path = "borg_archive/archive"} 0
+error_count{path = "borg_archive/archive"} 0
+response_time_samples{path = "borg_archive/archive"} 0
+response_time_min{path = "borg_archive/archive"} 0
+response_time_max{path = "borg_archive/archive"} 0
+response_time_mean{path = "borg_archive/archive"} 0
+response_time_stdev{path = "borg_archive/archive"} 0
+response_time{quantile = "0.9", path = "borg_archive/archive"} 0
+response_time{quantile = "0.95", path = "borg_archive/archive"} 0
+response_time{quantile = "0.99", path = "borg_archive/archive"} 0
+response_time{quantile = "0.999", path = "borg_archive/archive"} 0
+response_time{quantile = "0.9999", path = "borg_archive/archive"} 0
+hit_count{path = "borg_archive/prune"} 0
+throughput_samples{path = "borg_archive/prune"} 0
+throughput_min{path = "borg_archive/prune"} 0
+throughput_max{path = "borg_archive/prune"} 0
+throughput_mean{path = "borg_archive/prune"} 0
+throughput_stdev{path = "borg_archive/prune"} 0
+throughput{quantile = "0.9", path = "borg_archive/prune"} 0
+throughput{quantile = "0.95", path = "borg_archive/prune"} 0
+throughput{quantile = "0.99", path = "borg_archive/prune"} 0
+throughput{quantile = "0.999", path = "borg_archive/prune"} 0
+throughput{quantile = "0.9999", path = "borg_archive/prune"} 0
+error_count{path = "borg_archive/prune"} 0
+response_time_samples{path = "borg_archive/prune"} 0
+response_time_min{path = "borg_archive/prune"} 0
+response_time_max{path = "borg_archive/prune"} 0
+response_time_mean{path = "borg_archive/prune"} 0
+response_time_stdev{path = "borg_archive/prune"} 0
+response_time{quantile = "0.9", path = "borg_archive/prune"} 0
+response_time{quantile = "0.95", path = "borg_archive/prune"} 0
+response_time{quantile = "0.99", path = "borg_archive/prune"} 0
+response_time{quantile = "0.999", path = "borg_archive/prune"} 0
+response_time{quantile = "0.9999", path = "borg_archive/prune"} 0

@@ -14,6 +14,10 @@ chrono = { workspace = true, features = ["serde"] }
 clap = { workspace = true, features = ["derive", "env"] }
 futures-util.workspace = true
 humantime-serde.workspace = true
+hyper = { workspace = true, features = ["full"] }
+hyper-util = { workspace = true, features = ["full"] }
+insta.workspace = true
+metered.workspace = true
 native-tls.workspace = true
 opentelemetry.workspace = true
 opentelemetry-otlp = { workspace = true, features = ["grpc-tonic"] }
@@ -21,6 +25,7 @@ opentelemetry_sdk = { workspace = true, features = ["rt-tokio"] }
 reqwest = { workspace = true, features = ["json", "stream"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
+serde_prometheus.workspace = true
 tempfile.workspace = true
 thiserror.workspace = true
 tokio = { workspace = true, features = ["full"] }
@@ -34,5 +39,10 @@ unifi-protect-client.workspace = true
 unifi-protect-data.workspace = true
 
 [dev-dependencies]
+
+
+
+
+
 
 #tokio-test = "0.4"

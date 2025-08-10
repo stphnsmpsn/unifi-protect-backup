@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use unifi_protect_client::events::ProtectEvent;
 
-use crate::{Result, task::Prune};
+use crate::{Result, metrics::Metrics, task::Prune};
 
 pub mod local;
 pub mod rclone;
@@ -43,7 +43,10 @@ pub enum RemoteBackupConfig {
     Rclone(rclone::Config),
 }
 
-pub fn backup_targets(config: &crate::config::Config) -> Vec<Arc<dyn Backup>> {
+pub fn backup_targets(
+    config: &crate::config::Config,
+    metrics: &Arc<Metrics>,
+) -> Vec<Arc<dyn Backup>> {
     let mut targets = vec![];
 
     for remote in &config.backup.remote {
@@ -51,10 +54,12 @@ pub fn backup_targets(config: &crate::config::Config) -> Vec<Arc<dyn Backup>> {
             RemoteBackupConfig::Local(remote) => Arc::new(local::LocalBackup {
                 backup_config: config.backup.clone(),
                 remote_config: remote.clone(),
+                metrics: metrics.local_backup.clone(),
             }) as Arc<dyn Backup>,
             RemoteBackupConfig::Rclone(remote) => Arc::new(rclone::RcloneBackup {
                 backup_config: config.backup.clone(),
                 remote_config: remote.clone(),
+                metrics: metrics.rclone_backup.clone(),
             }) as Arc<dyn Backup>,
         });
     }

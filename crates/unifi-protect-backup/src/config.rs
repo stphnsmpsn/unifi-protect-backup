@@ -21,6 +21,7 @@ pub struct Config {
     pub notifications: Option<NotificationConfig>,
     pub logging: Option<LoggingConfig>,
     pub tracing: Option<TracingConfig>,
+    pub metrics: Option<MetricsConfig>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -66,6 +67,13 @@ pub struct LokiConfig {
 #[serde(rename_all(deserialize = "kebab-case"))]
 pub struct TempoConfig {
     pub url: String,
+    pub port: u16,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all(deserialize = "kebab-case"))]
+pub struct MetricsConfig {
+    pub address: String,
     pub port: u16,
 }
 
@@ -286,6 +294,19 @@ async fn prompt_for_config() -> Result<String> {
         "".to_string()
     };
 
+    // Prompt for metrics server configuration
+    println!("\nOptional: Configure metrics server");
+    let enable_metrics = prompt_with_default("Enable metrics server (true/false)", "false")?;
+
+    let metrics_config = if enable_metrics.to_lowercase() == "true" {
+        let metrics_address = prompt_with_default("Metrics server address", "127.0.0.1")?;
+        let metrics_port = prompt_with_default("Metrics server port", "3000")?;
+
+        format!("\n[metrics]\naddress = \"{metrics_address}\"\nport = {metrics_port}")
+    } else {
+        "".to_string()
+    };
+
     let detection_types_array = detection_types
         .split(',')
         .map(|s| format!("\"{}\"", s.trim()))
@@ -431,6 +452,8 @@ path = "{database_path}"
 {loki_config}
 
 {tempo_config}
+
+{metrics_config}
 "#
     );
 

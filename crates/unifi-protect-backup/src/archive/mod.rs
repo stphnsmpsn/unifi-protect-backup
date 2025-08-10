@@ -3,7 +3,7 @@ use std::{sync::Arc, time::Duration};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
-use crate::{Result, task::Prune};
+use crate::{Result, metrics::Metrics, task::Prune};
 
 pub mod borg;
 
@@ -30,7 +30,10 @@ pub enum RemoteArchiveConfig {
     Borg(borg::Config),
 }
 
-pub fn archive_targets(config: &crate::config::Config) -> Vec<Arc<dyn Archive>> {
+pub fn archive_targets(
+    config: &crate::config::Config,
+    metrics: &Arc<Metrics>,
+) -> Vec<Arc<dyn Archive>> {
     let mut targets = vec![];
 
     for remote in &config.archive.remote {
@@ -38,6 +41,7 @@ pub fn archive_targets(config: &crate::config::Config) -> Vec<Arc<dyn Archive>> 
             RemoteArchiveConfig::Borg(remote) => Arc::new(borg::BorgBackup {
                 backup_config: config.archive.clone(),
                 remote_config: remote.clone(),
+                metrics: metrics.borg_archive.clone(),
             }) as Arc<dyn Archive>,
         });
     }

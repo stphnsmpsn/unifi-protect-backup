@@ -3,6 +3,7 @@ pub mod backup;
 pub mod config;
 pub mod context;
 pub mod convert;
+pub mod metrics;
 pub mod opentelemetry;
 pub mod task;
 

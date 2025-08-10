@@ -1,7 +1,8 @@
-use std::{path::PathBuf, process::Stdio};
+use std::{path::PathBuf, process::Stdio, sync::Arc};
 
 use async_trait::async_trait;
 use chrono::Utc;
+use metered::{ErrorCount, HitCount, ResponseTime, Throughput};
 use serde::{Deserialize, Serialize};
 use tokio::process::Command;
 use tracing::{debug, info, trace};
@@ -22,20 +23,27 @@ pub struct Config {
 pub struct BorgBackup {
     pub backup_config: archive::Config,
     pub remote_config: Config,
+    pub metrics: Arc<Metrics>,
 }
 
 impl BorgBackup {
-    pub fn new(backup_config: archive::Config, remote_config: Config) -> Self {
+    pub fn new(
+        backup_config: archive::Config,
+        remote_config: Config,
+        metrics: Arc<Metrics>,
+    ) -> Self {
         Self {
             backup_config,
             remote_config,
+            metrics,
         }
     }
 }
 
-#[async_trait]
-impl Archive for BorgBackup {
+#[metered::metered(registry = Metrics, visibility = pub)]
+impl BorgBackup {
     #[tracing::instrument(skip(self))]
+    #[measure([HitCount, Throughput, ErrorCount, ResponseTime])]
     async fn archive(&self) -> Result<String> {
         let archive_name = format!(
             "{}::{}",
@@ -88,11 +96,9 @@ impl Archive for BorgBackup {
 
         Ok(archive_name)
     }
-}
 
-#[async_trait]
-impl Prune for BorgBackup {
     #[tracing::instrument(skip(self))]
+    #[measure([HitCount, Throughput, ErrorCount, ResponseTime])]
     async fn prune(&self) -> Result<()> {
         if self.remote_config.append_only {
             // we don't bother pruning. New archives will have less data and
@@ -143,5 +149,19 @@ impl Prune for BorgBackup {
 
         info!("Successfully pruned old backups");
         Ok(())
+    }
+}
+
+#[async_trait]
+impl Archive for BorgBackup {
+    async fn archive(&self) -> Result<String> {
+        self.archive().await
+    }
+}
+
+#[async_trait]
+impl Prune for BorgBackup {
+    async fn prune(&self) -> Result<()> {
+        self.prune().await
     }
 }

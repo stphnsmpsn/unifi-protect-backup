@@ -1,6 +1,7 @@
-use std::{path::PathBuf, time::SystemTime};
+use std::{path::PathBuf, sync::Arc, time::SystemTime};
 
 use async_trait::async_trait;
+use metered::{ErrorCount, HitCount, ResponseTime, Throughput};
 use serde::{Deserialize, Serialize};
 use tokio::{fs, io::AsyncWriteExt};
 use tracing::{debug, info, warn};
@@ -18,17 +19,25 @@ pub struct Config {
 pub struct LocalBackup {
     pub backup_config: backup::Config,
     pub remote_config: Config,
+    pub metrics: Arc<Metrics>,
 }
 
+#[metered::metered(registry = Metrics, visibility = pub)]
 impl LocalBackup {
-    pub fn new(backup_config: backup::Config, remote_config: Config) -> Self {
+    pub fn new(
+        backup_config: backup::Config,
+        remote_config: Config,
+        metrics: Arc<Metrics>,
+    ) -> Self {
         Self {
             backup_config,
             remote_config,
+            metrics,
         }
     }
 
     #[tracing::instrument(skip(self))]
+    #[measure([HitCount, Throughput, ErrorCount, ResponseTime])]
     async fn prune_directory(
         &self,
         dir_path: &PathBuf,
@@ -94,11 +103,9 @@ impl LocalBackup {
 
         Ok(())
     }
-}
 
-#[async_trait]
-impl Backup for LocalBackup {
     #[tracing::instrument(skip(self, video_data))]
+    #[measure([HitCount, Throughput, ErrorCount, ResponseTime])]
     async fn backup(&self, event: &ProtectEvent, video_data: &[u8]) -> Result<String> {
         let filename = event.format_filename(&self.backup_config.file_structure_format);
         info!("Backing up event {} as {}", event.id, filename);
@@ -121,11 +128,9 @@ impl Backup for LocalBackup {
         );
         Ok(filename)
     }
-}
 
-#[async_trait]
-impl Prune for LocalBackup {
     #[tracing::instrument(skip(self))]
+    #[measure([HitCount, Throughput, ErrorCount, ResponseTime])]
     async fn prune(&self) -> Result<()> {
         info!(
             "Pruning old backups from local storage (retention: {:?})",
@@ -163,5 +168,19 @@ impl Prune for LocalBackup {
                 Err(e)
             }
         }
+    }
+}
+
+#[async_trait]
+impl Backup for LocalBackup {
+    async fn backup(&self, event: &ProtectEvent, video_data: &[u8]) -> Result<String> {
+        self.backup(event, video_data).await
+    }
+}
+
+#[async_trait]
+impl Prune for LocalBackup {
+    async fn prune(&self) -> Result<()> {
+        self.prune().await
     }
 }

@@ -7,6 +7,7 @@ use unifi_protect_backup::{
     Result,
     config::{Args, Config, check_and_create_config},
     context::Context,
+    metrics::start_metrics_server,
     opentelemetry, task,
 };
 
@@ -59,9 +60,22 @@ async fn main() -> Result<()> {
           } else {
               std::future::pending().await // Never resolves
           }
-      } => {
-          warn!("Loki task stopped: {:?}", res);
-      }
+        } => {
+            warn!("Loki task stopped: {:?}", res);
+        }
+        res = async {
+          if let Some(metrics_config) = config.metrics {
+            start_metrics_server(
+            context.metrics.clone(),
+            metrics_config.address.as_str(),
+            metrics_config.port,
+        ).await
+        } else {
+            std::future::pending().await // Never resolves
+            }
+        } => {
+            warn!("HTTP server task stopped: {:?}", res);
+        }
     }
 
     info!("Exiting...");
