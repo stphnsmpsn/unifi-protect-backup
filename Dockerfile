@@ -11,6 +11,11 @@ RUN cargo build --release
 # It is built on top of the template base image and adds the service binary.
 FROM gitlab-registry.stephensampson.dev/stphnsmpsn/ci-templates/rust-base:latest AS release
 
+ARG DEBIAN_FRONTEND=noninteractive
+RUN apt update && apt install -y \
+    borgbackup \
+    rclone
+
 COPY --from=build /app/target/release/unifi-protect-backup ./
 USER app
 CMD [ "./unifi-protect-backup" ]
