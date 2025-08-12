@@ -473,7 +473,13 @@ fn prompt_for_borg_config() -> Result<(String, String, String, bool, String)> {
     )?;
     let append_only = append_only_str.to_lowercase() == "true";
 
-    Ok((ssh_key_path, borg_repo, borg_passphrase, append_only, source_path))
+    Ok((
+        ssh_key_path,
+        borg_repo,
+        borg_passphrase,
+        append_only,
+        source_path,
+    ))
 }
 
 fn prompt_for_rclone_config() -> Result<(String, String, bool, bool)> {

@@ -21,7 +21,6 @@ pub struct Config {
     pub source_path: PathBuf,
 }
 
-
 pub struct BorgBackup {
     pub backup_config: archive::Config,
     pub remote_config: Config,
