@@ -18,7 +18,9 @@ pub struct Config {
     pub borg_repo: String,
     pub borg_passphrase: Option<String>,
     pub append_only: bool,
+    pub source_path: PathBuf,
 }
+
 
 pub struct BorgBackup {
     pub backup_config: archive::Config,
@@ -61,7 +63,7 @@ impl BorgBackup {
             .arg("--show-rc")
             .arg("--compression=lz4")
             .arg(&archive_name)
-            .arg("./.data"); // todo(steve.sampson): don't hard code this path!
+            .arg(&self.remote_config.source_path);
 
         if let Some(ref passphrase) = self.remote_config.borg_passphrase {
             cmd.env("BORG_PASSPHRASE", passphrase);
