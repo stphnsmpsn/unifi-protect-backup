@@ -15,7 +15,8 @@ FROM gitlab-registry.stephensampson.dev/stphnsmpsn/ci-templates/rust-base:latest
 ARG DEBIAN_FRONTEND=noninteractive
 RUN apt update && apt install -y \
     borgbackup \
-    rclone
+    rclone \
+    openssh-client
 
 COPY --from=build /app/target/release/unifi-protect-backup ./
 USER app
