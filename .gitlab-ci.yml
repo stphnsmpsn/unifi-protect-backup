@@ -12,9 +12,16 @@ stages:
   - deploy
   - release
 
+build::docker::unifi-protect-backup:
+  stage: release
+  extends: .docker::build
+  needs: [ 'check::rust::clippy', 'check::rust::fmt', 'test::rust' ]
+  only:
+    - master
+
 release::docker::unifi-protect-backup:
   stage: release
   extends: .docker::release
-  needs: [ 'check::rust::clippy', 'check::rust::fmt', 'test::rust' ]
+  needs: [ 'build::docker::unifi-protect-backup' ]
   only:
     - master

@@ -4,7 +4,8 @@ FROM gitlab-registry.stephensampson.dev/stphnsmpsn/ci-templates/rust-builder:lat
 
 WORKDIR /app
 COPY . .
-RUN cargo build --release
+# hack to prevent QEMU internal SIGILL & QEMU internal SIGSEGV (may also be caused by ASLR)
+RUN if [ "$(uname -m)" = "aarch64" ]; then export CARGO_BUILD_JOBS=4; fi && cargo build --release
 
 # ---- Production Release Image ----
 # This image is used to run the service binary.
