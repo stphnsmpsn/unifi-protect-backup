@@ -222,3 +222,25 @@ response_time{quantile = "0.95", path = "borg_archive/prune"} 0
 response_time{quantile = "0.99", path = "borg_archive/prune"} 0
 response_time{quantile = "0.999", path = "borg_archive/prune"} 0
 response_time{quantile = "0.9999", path = "borg_archive/prune"} 0
+hit_count{path = "borg_archive/compact"} 0
+throughput_samples{path = "borg_archive/compact"} 0
+throughput_min{path = "borg_archive/compact"} 0
+throughput_max{path = "borg_archive/compact"} 0
+throughput_mean{path = "borg_archive/compact"} 0
+throughput_stdev{path = "borg_archive/compact"} 0
+throughput{quantile = "0.9", path = "borg_archive/compact"} 0
+throughput{quantile = "0.95", path = "borg_archive/compact"} 0
+throughput{quantile = "0.99", path = "borg_archive/compact"} 0
+throughput{quantile = "0.999", path = "borg_archive/compact"} 0
+throughput{quantile = "0.9999", path = "borg_archive/compact"} 0
+error_count{path = "borg_archive/compact"} 0
+response_time_samples{path = "borg_archive/compact"} 0
+response_time_min{path = "borg_archive/compact"} 0
+response_time_max{path = "borg_archive/compact"} 0
+response_time_mean{path = "borg_archive/compact"} 0
+response_time_stdev{path = "borg_archive/compact"} 0
+response_time{quantile = "0.9", path = "borg_archive/compact"} 0
+response_time{quantile = "0.95", path = "borg_archive/compact"} 0
+response_time{quantile = "0.99", path = "borg_archive/compact"} 0
+response_time{quantile = "0.999", path = "borg_archive/compact"} 0
+response_time{quantile = "0.9999", path = "borg_archive/compact"} 0

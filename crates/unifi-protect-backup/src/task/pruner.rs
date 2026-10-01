@@ -1,5 +1,6 @@
-use futures_util::future::join_all;
 use std::sync::Arc;
+
+use futures_util::future::join_all;
 use tokio::time::interval;
 use tracing::{info, warn};
 
@@ -23,19 +24,14 @@ impl Pruner {
         loop {
             interval.tick().await;
 
+            // Backup storage only. Archive targets prune themselves right after each archive
+            // (see the Archiver), so their repository lock is never contended from here.
             let futs = self
                 .context
                 .backup_targets
                 .as_slice()
                 .iter()
-                .map(|e| e.prune())
-                .chain(
-                    self.context
-                        .archive_targets
-                        .as_slice()
-                        .iter()
-                        .map(|e| e.prune()),
-                );
+                .map(|e| e.prune());
 
             let results = join_all(futs).await;
 

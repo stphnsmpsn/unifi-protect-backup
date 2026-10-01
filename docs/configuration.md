@@ -132,17 +132,28 @@ Long-term archive settings for encrypted, deduplicated storage:
 ```toml
 [archive]
 archive-interval = "1d"               # How often to create archives
-retention-period = "365d"             # Archive retention period
+retention-period = "365d"             # Archive retention period (borg prune --keep-daily, in days)
 file-structure-format = "{camera_name}/{date}/{time}_{detection_type}.mp4"
-purge-interval = "1w"                 # Archive cleanup frequency
+purge-interval = "1w"                 # Accepted for compatibility; archives are pruned after each archive run
 ```
+
+Every archive run is followed by `borg prune --keep-daily <retention-period in days>` on the same
+target, and then `borg compact` unless the target is append-only. The two run in the archive task,
+one after the other, so they never contend for the repository lock with the create.
 
 ### Borg Archive Targets
 
 ```toml
 [[archive.remote]]
-borg = { borg-repo = "user@rsync.net:unifi-protect", borg-passphrase = "env:BORG_PASSPHRASE", ssh-key-path = "/home/user/.ssh/borg_key" }
+borg = { borg-repo = "user@rsync.net:unifi-protect", borg-passphrase = "env:BORG_PASSPHRASE", ssh-key-path = "/home/user/.ssh/borg_key", append-only = false, source-path = "/data/backups" }
 ```
+
+`append-only = true` says the key behind `borg-repo` is an append-only key. Prune still runs: in
+append-only mode borg records each deletion as a new transaction (delayed deletion) rather than
+dropping anything, which is what makes the key safe against a compromised client. What the tool
+cannot do with such a key is reclaim the space, so `borg compact` is skipped and the repository
+only shrinks when the server compacts it. On BorgBase, enable *Compaction* on the repository; on
+your own server, run `borg compact` with a full-access key on a schedule.
 
 ### Multiple Archives
 

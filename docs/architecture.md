@@ -239,7 +239,9 @@ sequenceDiagram
         AT->>BORG: Borg Create
         BORG-->>AT: Archive Created
         AT->>BORG: Borg Prune
-        BORG-->>AT: Old Archives Pruned
+        BORG-->>AT: Old Archives Tagged Deleted
+        AT->>BORG: Borg Compact (not append-only)
+        BORG-->>AT: Space Reclaimed
     end
 ```
 

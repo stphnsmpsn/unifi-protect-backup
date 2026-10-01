@@ -23,9 +23,17 @@ impl Archiver {
         loop {
             interval.tick().await;
             for archiver in self.context.archive_targets.as_slice() {
-                let _ = archiver.archive().await.inspect_err(|err| {
-                    warn!(err = ?err, "Failed to create archive");
-                });
+                // Prune right after the archive, in this task, rather than from the Pruner on
+                // its own clock: the two clocks coincided and the prune lost the repository lock
+                // to the create every time.
+                match archiver.archive().await {
+                    Ok(_) => {
+                        let _ = archiver.prune().await.inspect_err(|err| {
+                            warn!(err = ?err, "Failed to prune archives");
+                        });
+                    }
+                    Err(err) => warn!(err = ?err, "Failed to create archive"),
+                }
             }
         }
     }
