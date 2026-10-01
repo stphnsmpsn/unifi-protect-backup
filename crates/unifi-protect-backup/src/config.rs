@@ -63,11 +63,33 @@ pub struct LokiConfig {
     pub labels: Option<std::collections::HashMap<String, String>>,
 }
 
+/// How traces reach Tempo: OTLP over gRPC (Tempo's port 4317, or a gRPC ingress) or OTLP over
+/// HTTP (`/v1/traces` on port 4318, or an HTTP ingress). Both carry basic auth when a username
+/// and password are set, so either can go through an authenticating reverse proxy.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all(deserialize = "kebab-case"))]
+pub enum Protocol {
+    Http,
+    Grpc,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all(deserialize = "kebab-case"))]
 pub struct TempoConfig {
+    /// Defaults to gRPC, which is what every config written before the field existed used.
+    #[serde(default = "Protocol::grpc")]
+    pub protocol: Protocol,
     pub url: String,
     pub port: u16,
+    pub username: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_optional_file_const_or_env")]
+    pub password: Option<String>,
+}
+
+impl Protocol {
+    fn grpc() -> Self {
+        Protocol::Grpc
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -275,8 +297,16 @@ async fn prompt_for_config() -> Result<String> {
     let enable_tempo = prompt_with_default("Enable Tempo tracing export (true/false)", "false")?;
 
     let tempo_config = if enable_tempo.to_lowercase() == "true" {
-        let tempo_url = prompt_with_default("Tempo endpoint URL", "localhost")?;
-        let tempo_port = prompt_with_default("Tempo OTLP HTTP port (optional)", "4318")?;
+        let tempo_protocol = prompt_with_default("Tempo OTLP protocol (grpc/http)", "grpc")?;
+        let tempo_url = prompt_with_default("Tempo endpoint URL", "http://localhost")?;
+        let tempo_port = prompt_with_default(
+            "Tempo OTLP port (optional; 4317 for grpc, 4318 for http)",
+            if tempo_protocol.trim().eq_ignore_ascii_case("http") {
+                "4318"
+            } else {
+                "4317"
+            },
+        )?;
 
         let tempo_port_config = if tempo_port.is_empty() {
             "".to_string()
@@ -284,7 +314,10 @@ async fn prompt_for_config() -> Result<String> {
             format!("port = {tempo_port}")
         };
 
-        let mut tempo_fields = vec![format!("url = \"{}\"", tempo_url)];
+        let mut tempo_fields = vec![
+            format!("protocol = \"{}\"", tempo_protocol.trim().to_lowercase()),
+            format!("url = \"{}\"", tempo_url),
+        ];
         if !tempo_port_config.is_empty() {
             tempo_fields.push(tempo_port_config);
         }

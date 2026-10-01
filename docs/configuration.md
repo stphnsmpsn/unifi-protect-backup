@@ -12,6 +12,9 @@ The application uses TOML format with the following main sections:
 [archive]      # Long-term archive configuration  
 [database]     # Database settings
 [notifications] # Email notifications (optional)
+[logging]      # Loki log shipping (optional)
+[tracing]      # Tempo trace export (optional)
+[metrics]      # Prometheus metrics endpoint (optional)
 ```
 
 ## UniFi Protect Connection
@@ -194,6 +197,45 @@ smtp-username = "your-email@gmail.com"
 smtp-password = "env:SMTP_PASSWORD"
 email-from = "backup@yourdomain.com"
 email-to = "admin@yourdomain.com"
+```
+
+## Observability (Optional)
+
+### Logs to Loki
+
+```toml
+[logging.loki]
+url = "https://loki.example.com/loki/api/v1/push"
+username = "push"
+password = "env:LOKI_PASSWORD"
+labels = { host = "nas" }
+```
+
+### Traces to Tempo
+
+```toml
+[tracing.tempo]
+protocol = "http"                     # "grpc" (default) or "http"
+url = "https://tempo.example.com"     # scheme and host; no path
+port = 443                            # 4317 for plain gRPC, 4318 for plain HTTP
+username = "push"                     # optional; sent as basic auth with the password
+password = "env:TEMPO_PASSWORD"
+```
+
+`protocol` picks the OTLP transport. With `grpc` the exporter opens a gRPC channel to `url:port`
+(TLS when the scheme is `https`); with `http` it posts protobuf to `url:port/v1/traces`. Both send
+`Authorization: Basic …` when a username and password are set, so either can go through a reverse
+proxy that authenticates, such as an ingress in front of Tempo. A gRPC ingress and an HTTP ingress
+cannot share one hostname on ingress-nginx, which is why the protocol is a setting rather than a
+guess: match it to whichever your Tempo endpoint speaks. Configs written before `protocol` existed
+keep working as gRPC.
+
+### Metrics for Prometheus
+
+```toml
+[metrics]
+address = "0.0.0.0"
+port = 3000
 ```
 
 ## Environment Variable Overrides
