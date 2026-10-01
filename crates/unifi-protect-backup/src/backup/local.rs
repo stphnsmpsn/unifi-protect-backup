@@ -66,13 +66,13 @@ impl LocalBackup {
                 }
 
                 // Try to remove empty directories
-                if let Ok(mut empty_check) = fs::read_dir(&path).await {
-                    if empty_check.next_entry().await?.is_none() {
-                        if let Err(e) = fs::remove_dir(&path).await {
-                            debug!("Failed to remove empty directory {}: {}", path.display(), e);
-                        } else {
-                            debug!("Removed empty directory: {}", path.display());
-                        }
+                if let Ok(mut empty_check) = fs::read_dir(&path).await
+                    && empty_check.next_entry().await?.is_none()
+                {
+                    if let Err(e) = fs::remove_dir(&path).await {
+                        debug!("Failed to remove empty directory {}: {}", path.display(), e);
+                    } else {
+                        debug!("Removed empty directory: {}", path.display());
                     }
                 }
             } else if metadata.is_file() {

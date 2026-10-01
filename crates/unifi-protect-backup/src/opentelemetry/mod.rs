@@ -24,21 +24,21 @@ pub fn init(config: &Config) -> Option<JoinHandle<()>> {
 
     let mut loki_task = None;
 
-    if let Some(loki_config) = config.logging.as_ref().and_then(|c| c.loki.clone()) {
-        if let Ok((layer, task)) = loki_layer(loki_config) {
-            layers.push(Box::new(layer));
-            loki_task = Some(task);
-        }
+    if let Some(loki_config) = config.logging.as_ref().and_then(|c| c.loki.clone())
+        && let Ok((layer, task)) = loki_layer(loki_config)
+    {
+        layers.push(Box::new(layer));
+        loki_task = Some(task);
     }
 
-    if let Some(tempo_config) = config.tracing.as_ref().and_then(|c| c.tempo.clone()) {
-        if let Ok(tracer) = tracer(tempo_config) {
-            layers.push(Box::new(
-                tracing_opentelemetry::layer()
-                    .with_tracer(tracer)
-                    .with_filter(tracing_core::metadata::LevelFilter::INFO),
-            ));
-        }
+    if let Some(tempo_config) = config.tracing.as_ref().and_then(|c| c.tempo.clone())
+        && let Ok(tracer) = tracer(tempo_config)
+    {
+        layers.push(Box::new(
+            tracing_opentelemetry::layer()
+                .with_tracer(tracer)
+                .with_filter(tracing_core::metadata::LevelFilter::INFO),
+        ));
     }
 
     tracing_subscriber::registry().with(layers).init();
